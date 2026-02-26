@@ -306,10 +306,11 @@ export default function MarketOverview() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between mb-8">
           <div>
-            <h2 className="text-[#eaecef] text-2xl font-bold">Markets</h2>
+            <h2 className="font-[family-name:var(--font-heading)] text-[28px] sm:text-[32px] text-[#eaecef] font-normal tracking-[-0.02em]">
+              Markets
+            </h2>
             <p className="text-[#3d4354] text-[13px] mt-1">
-              Explore top cryptocurrencies by market cap, volume, and
-              performance.
+              Real-time prices across top assets.
             </p>
           </div>
           <Link
