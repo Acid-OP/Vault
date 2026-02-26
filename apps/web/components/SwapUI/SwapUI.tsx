@@ -19,10 +19,9 @@ export function SwapUI({ market }: { market: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#14151b] p-4">
-      <TradeToggle initialSide="buy"  onChange={(side) => console.log("Selected side:", side)} />
-      <OrderTabs initialType="market" balance="-" onOrderTypeChange={(type) => console.log("Selected type:", type)}
-      />
+    <div className="flex flex-col h-full bg-[#14151b] p-3 pt-2.5">
+      <TradeToggle initialSide="buy" width="w-full" onChange={(side) => console.log("Selected side:", side)} />
+      <OrderTabs initialType="market" balance="-" onOrderTypeChange={(type) => console.log("Selected type:", type)} />
       <TradeForm
         price={price}
         setPrice={setPrice}
@@ -34,11 +33,8 @@ export function SwapUI({ market }: { market: string }) {
         setOrderValue={setOrderValue}
       />
 
-
-      {/* Market Reputation */}
-      <div className="mt-4 pt-4 border-t border-[#2a2b35]">
-        <span className="text-sm text-gray-400">Market Reputation</span>
-        
+      <div className="mt-auto pt-3 border-t border-[#1a1b24]">
+        <span className="text-[11px] text-[#4a5068]">Market Reputation</span>
       </div>
     </div>
   );

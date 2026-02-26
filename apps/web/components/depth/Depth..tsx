@@ -35,7 +35,6 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
     const depthCallbackId = `orderbook-depth-${market}`;
     const tickerCallbackId = `orderbook-ticker-${market}`;
 
-    console.log('🔧 [Orderbook] Subscribing to market:', market);
     manager.subscribe(market);
 
     // Fetch initial depth via HTTP
@@ -59,17 +58,10 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
     }).catch(err => console.error('Failed to fetch initial depth:', err));
 
     manager.registerCallback('depth', (depth: DepthUpdate) => {
-      console.log('📦 [Orderbook] Depth callback triggered:', depth);
-      
-      if (depth.symbol !== market) {
-        console.log('⚠️ [Orderbook] Symbol mismatch:', depth.symbol, 'vs', market);
-        return;
-      }
+      if (depth.symbol !== market) return;
       
       const validBids = depth.bids.filter(([price, size]) => parseFloat(size) > 0);
       const validAsks = depth.asks.filter(([price, size]) => parseFloat(size) > 0);
-      
-      console.log('✅ [Orderbook] Valid orders - Bids:', validBids.length, 'Asks:', validAsks.length);
       
       let askRunningTotal = 0;
       const transformedAsks: Order[] = validAsks.map(([price, size]) => {
@@ -91,39 +83,22 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
         };
       });
 
-      console.log('📊 [Orderbook] Transformed - Bids:', transformedBids, 'Asks:', transformedAsks);
-
       setBids(transformedBids);
       setAsks(transformedAsks);
       
-      const totalBidVolume = bidRunningTotal;
-      const totalAskVolume = askRunningTotal;
-      const totalVolume = totalBidVolume + totalAskVolume;
-      
+      const totalVolume = bidRunningTotal + askRunningTotal;
       if (totalVolume > 0) {
-        const newBuyPercentage = (totalBidVolume / totalVolume) * 100;
-        console.log('📊 [Orderbook] Buy percentage:', newBuyPercentage.toFixed(2) + '%');
-        setBuyPercentage(newBuyPercentage);
+        setBuyPercentage((bidRunningTotal / totalVolume) * 100);
       }
     }, depthCallbackId);
 
     manager.registerCallback('ticker', (ticker) => {
-      console.log('🎫 [Orderbook] Ticker callback triggered:', ticker);
-      
-      if (ticker.symbol !== market) {
-        console.log('⚠️ [Orderbook] Ticker symbol mismatch:', ticker.symbol, 'vs', market);
-        return;
-      }
-      
-      console.log('✅ [Orderbook] Setting price:', ticker.lastPrice, 'change:', ticker.priceChange);
+      if (ticker.symbol !== market) return;
       setCurrentPrice(parseFloat(ticker.lastPrice));
       setPriceChange(parseFloat(ticker.priceChange));
     }, tickerCallbackId);
 
-    console.log('✅ [Orderbook] Callbacks registered');
-
     return () => {
-      console.log('🧹 [Orderbook] Cleaning up for', market);
       manager.deRegisterCallback('depth', depthCallbackId);
       manager.deRegisterCallback('ticker', tickerCallbackId);
       manager.unsubscribe(market);
@@ -145,8 +120,6 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
     ...bids.map(b => parseFloat(b.total)),
     1
   );
-
-  console.log('🎨 [Orderbook] Rendering - Bids:', bids.length, 'Asks:', asks.length);
 
   return (
     <div className="flex flex-col h-full text-gray-100 text-xs select-none">

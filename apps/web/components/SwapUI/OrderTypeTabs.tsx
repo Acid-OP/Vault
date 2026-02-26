@@ -22,59 +22,47 @@ const OrderTabs: React.FC<OrderTabsProps> = ({
 
   return (
     <div>
-      {/* Order Type Tabs */}
-      <div className="flex mb-4 gap-2">
+      <div className="flex mb-3 gap-1">
         <button
           onClick={() => handleClick("limit")}
-          className={`px-3 py-1.5 font-medium cursor-pointer text-sm transition-colors rounded-lg ${
+          className={`px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors rounded ${
             orderType === "limit"
-              ? "text-white bg-[#202127]"
-              : "text-gray-400 hover:text-white"
+              ? "text-white bg-[#2a2b35]"
+              : "text-[#4a5068] hover:text-[#848e9c]"
           }`}
         >
           Limit
         </button>
         <button
           onClick={() => handleClick("market")}
-          className={`px-3 py-1.5 font-medium text-sm cursor-pointer transition-colors rounded-lg ${
+          className={`px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors rounded ${
             orderType === "market"
-              ? "text-white bg-[#202127]"
-              : "text-gray-400 hover:text-white"
+              ? "text-white bg-[#2a2b35]"
+              : "text-[#4a5068] hover:text-[#848e9c]"
           }`}
         >
           Market
         </button>
         <button
           onClick={() => handleClick("conditional")}
-          className={`px-3 py-1.5 font-medium text-sm transition-colors cursor-pointer rounded-lg flex items-center gap-1 ${
+          className={`px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors rounded flex items-center gap-1 ${
             orderType === "conditional"
-              ? "text-white bg-[#202127]"
-              : "text-gray-400 hover:text-white"
+              ? "text-white bg-[#2a2b35]"
+              : "text-[#4a5068] hover:text-[#848e9c]"
           }`}
         >
           Conditional
-          <svg
-            className="w-3 h-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
+          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
       </div>
 
-      {/* Balance */}
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-xs text-gray-400 border-b border-dashed border-gray-700">
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-[11px] text-[#4a5068] border-b border-dashed border-[#2a2b35]">
           Balance
         </span>
-        <span className="text-xs text-white">{balance}</span>
+        <span className="text-[11px] text-[#eaecef]">{balance}</span>
       </div>
     </div>
   );

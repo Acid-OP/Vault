@@ -14,25 +14,25 @@ const TradeToggle: React.FC<TradeToggleProps> = ({onChange, initialSide = "buy",
   };
 
   return (
-    <div className="flex justify-center mb-4">
-      <div className={`flex gap-0 bg-[#202127] rounded-xl p-1 relative ${width}`}>
+    <div className="mb-3">
+      <div className={`flex bg-[#1a1b24] rounded-lg p-0.5 relative ${width}`}>
         <div
-          className={`absolute inset-0 w-1/2 rounded-xl transition-all duration-300 ease-in-out ${
-            side === "buy" ? "left-0 bg-[#1d2d2d]" : "left-1/2 bg-[#3a1e24]"
+          className={`absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] rounded-md transition-all duration-200 ease-out ${
+            side === "buy" ? "left-0.5 bg-[#0e2d23]" : "left-[calc(50%+2px)] bg-[#2d1a1e]"
           }`}
         />
         <button
           onClick={() => handleClick("buy")}
-          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition-colors relative z-10 cursor-pointer ${
-            side === "buy" ? "text-[#00D395]" : "text-gray-400 hover:text-[#00D395]"
+          className={`flex-1 py-2 text-xs font-semibold rounded-md transition-colors relative z-10 cursor-pointer ${
+            side === "buy" ? "text-[#0ecb81]" : "text-[#4a5068] hover:text-[#0ecb81]"
           }`}
         >
           Buy
         </button>
         <button
           onClick={() => handleClick("sell")}
-          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition-colors relative z-10 cursor-pointer ${
-            side === "sell" ? "text-[#dc4044]" : "text-gray-400 hover:text-[#dc4044]"
+          className={`flex-1 py-2 text-xs font-semibold rounded-md transition-colors relative z-10 cursor-pointer ${
+            side === "sell" ? "text-[#f6465d]" : "text-[#4a5068] hover:text-[#f6465d]"
           }`}
         >
           Sell

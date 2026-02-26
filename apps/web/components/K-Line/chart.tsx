@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType } from 'lightweight-charts';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType, CrosshairMode } from 'lightweight-charts';
 import { SignalingManager } from '../../utils/Manager';
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const;
@@ -13,18 +13,111 @@ interface KLineChartProps {
 export default function KLineChart({ market }: KLineChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const [interval, setInterval] = useState<string>('1m');
 
-  // Fetch initial kline data
+  const initChart = useCallback(() => {
+    const container = chartContainerRef.current;
+    if (!container) return;
+
+    if (chartRef.current) {
+      chartRef.current.remove();
+      chartRef.current = null;
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+    }
+
+    const chart = createChart(container, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#0e0f14' },
+        textColor: '#3d4354',
+        fontSize: 10,
+      },
+      grid: {
+        vertLines: { color: 'rgba(42, 46, 57, 0.25)' },
+        horzLines: { color: 'rgba(42, 46, 57, 0.25)' },
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: {
+          color: 'rgba(120, 130, 155, 0.4)',
+          width: 1,
+          style: 2,
+          labelBackgroundColor: '#1c1e2c',
+        },
+        horzLine: {
+          color: 'rgba(120, 130, 155, 0.4)',
+          width: 1,
+          style: 2,
+          labelBackgroundColor: '#1c1e2c',
+        },
+      },
+      rightPriceScale: {
+        borderVisible: false,
+        scaleMargins: { top: 0.38, bottom: 0.38 },
+        entireTextOnly: true,
+      },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
+        barSpacing: 3,
+        minBarSpacing: 0.5,
+        rightOffset: 10,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        axisPressedMouseMove: { time: true, price: false },
+        mouseWheel: false,
+        pinch: true,
+      },
+      width: container.clientWidth,
+      height: container.clientHeight,
+    });
+
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#00c176',
+      downColor: '#ea3941',
+      borderDownColor: '#ea3941',
+      borderUpColor: '#00c176',
+      wickDownColor: '#ea394180',
+      wickUpColor: '#00c17680',
+    });
+
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+    });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.85, bottom: 0 },
+    });
+
+    chartRef.current = chart;
+    candleSeriesRef.current = candleSeries;
+    volumeSeriesRef.current = volumeSeries;
+
+    return chart;
+  }, []);
+
   useEffect(() => {
+    const chart = initChart();
+    if (!chart || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+
+    let cancelled = false;
+
     const fetchKlines = async () => {
       try {
         const res = await fetch(`http://localhost:3001/klines?symbol=${market}&interval=${interval}&limit=500`);
         const data = await res.json();
-
-        if (!data.candles || !candlestickSeriesRef.current || !volumeSeriesRef.current) return;
+        if (cancelled || !data.candles || !candleSeriesRef.current || !volumeSeriesRef.current) return;
 
         const candles: CandlestickData<Time>[] = data.candles.map((c: any) => ({
           time: (Math.floor(c.timestamp / 1000)) as Time,
@@ -37,19 +130,21 @@ export default function KLineChart({ market }: KLineChartProps) {
         const volumes = data.candles.map((c: any) => ({
           time: (Math.floor(c.timestamp / 1000)) as Time,
           value: c.volume,
-          color: c.close >= c.open ? 'rgba(14, 203, 129, 0.2)' : 'rgba(246, 70, 93, 0.2)',
+          color: c.close >= c.open ? 'rgba(0, 193, 118, 0.08)' : 'rgba(234, 57, 65, 0.08)',
         }));
 
         if (candles.length > 0) {
-          candlestickSeriesRef.current.setData(candles);
+          candleSeriesRef.current.setData(candles);
           volumeSeriesRef.current.setData(volumes);
 
-          if (chartRef.current) {
-            const ts = chartRef.current.timeScale();
-            const visibleBars = 80;
+          const ts = chart.timeScale();
+          if (candles.length < 10) {
+            ts.fitContent();
+          } else {
+            const barsToShow = Math.min(candles.length, 250);
             ts.setVisibleLogicalRange({
-              from: candles.length - visibleBars,
-              to: candles.length + 5,
+              from: candles.length - barsToShow,
+              to: candles.length + 10,
             });
           }
         }
@@ -59,10 +154,7 @@ export default function KLineChart({ market }: KLineChartProps) {
     };
 
     fetchKlines();
-  }, [market, interval]);
 
-  // Subscribe to real-time kline updates via WebSocket
-  useEffect(() => {
     const manager = SignalingManager.getInstance();
     const callbackId = `kline-chart-${market}-${interval}`;
 
@@ -72,150 +164,63 @@ export default function KLineChart({ market }: KLineChartProps) {
     });
 
     manager.registerCallback('kline' as any, (data: any) => {
-      if (!data || !data.kline || !candlestickSeriesRef.current || !volumeSeriesRef.current) return;
+      if (cancelled || !data?.kline || !candleSeriesRef.current || !volumeSeriesRef.current) return;
       if (data.symbol !== market || data.interval !== interval) return;
 
       const k = data.kline;
       const time = (Math.floor(k.timestamp / 1000)) as Time;
 
-      candlestickSeriesRef.current.update({
-        time,
-        open: k.open,
-        high: k.high,
-        low: k.low,
-        close: k.close,
+      candleSeriesRef.current.update({
+        time, open: k.open, high: k.high, low: k.low, close: k.close,
       });
-
       volumeSeriesRef.current.update({
-        time,
-        value: k.volume,
-        color: k.close >= k.open ? 'rgba(14, 203, 129, 0.2)' : 'rgba(246, 70, 93, 0.2)',
+        time, value: k.volume,
+        color: k.close >= k.open ? 'rgba(0, 193, 118, 0.08)' : 'rgba(234, 57, 65, 0.08)',
       });
     }, callbackId);
 
-    return () => {
-      manager.deRegisterCallback('kline' as any, callbackId);
-      manager.sendRaw({
-        method: "UNSUBSCRIBE",
-        params: [`kline@${market}@${interval}`]
-      });
-    };
-  }, [market, interval]);
-
-  // Create and manage the chart
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: '#14151b' },
-        textColor: '#555a68',
-        fontSize: 11,
-      },
-      grid: {
-        vertLines: { color: '#1c1d25' },
-        horzLines: { color: '#1c1d25' },
-      },
-      crosshair: {
-        mode: 0,
-        vertLine: {
-          color: '#555a68',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: '#2a2a3a',
-        },
-        horzLine: {
-          color: '#555a68',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: '#2a2a3a',
-        },
-      },
-      rightPriceScale: {
-        borderColor: '#1c1d25',
-        scaleMargins: { top: 0.15, bottom: 0.25 },
-      },
-      timeScale: {
-        borderColor: '#1c1d25',
-        timeVisible: true,
-        secondsVisible: false,
-        barSpacing: 6,
-        minBarSpacing: 1,
-        rightOffset: 5,
-        fixLeftEdge: false,
-        fixRightEdge: false,
-      },
-      handleScroll: {
-        mouseWheel: false,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: false,
-      },
-      handleScale: {
-        axisPressedMouseMove: { time: true, price: false },
-        mouseWheel: true,
-        pinch: true,
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-    });
-
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#0ecb81',
-      downColor: '#f6465d',
-      borderDownColor: '#f6465d',
-      borderUpColor: '#0ecb81',
-      wickDownColor: '#f6465d',
-      wickUpColor: '#0ecb81',
-    });
-
-    const volumeSeries = chart.addHistogramSeries({
-      priceFormat: { type: 'volume' },
-      priceScaleId: '',
-    });
-
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
-
-    chartRef.current = chart;
-    candlestickSeriesRef.current = candlestickSeries;
-    volumeSeriesRef.current = volumeSeries;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (!entries[0]) return;
+    const container = chartContainerRef.current!;
+    const ro = new ResizeObserver((entries) => {
+      if (cancelled || !entries[0]) return;
       const { width, height } = entries[0].contentRect;
       chart.applyOptions({ width, height });
     });
-    resizeObserver.observe(chartContainerRef.current);
+    ro.observe(container);
 
     return () => {
-      resizeObserver.disconnect();
+      cancelled = true;
+      ro.disconnect();
+      manager.deRegisterCallback('kline' as any, callbackId);
+      manager.sendRaw({ method: "UNSUBSCRIBE", params: [`kline@${market}@${interval}`] });
       chart.remove();
       chartRef.current = null;
-      candlestickSeriesRef.current = null;
+      candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
     };
-  }, []);
+  }, [market, interval, initChart]);
 
   return (
-    <div className="flex flex-col h-full bg-[#14151b] rounded-lg overflow-hidden">
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-[#1c1d25]">
+    <div className="flex flex-col h-full bg-[#0e0f14] rounded-lg overflow-hidden">
+      <div className="flex items-center gap-0.5 px-2.5 py-1.5">
         {INTERVALS.map((iv) => (
           <button
             key={iv}
             onClick={() => setInterval(iv)}
-            className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
+            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all duration-200 ${
               interval === iv
-                ? 'bg-[#2a2b35] text-[#f0b90b]'
-                : 'text-[#555a68] hover:text-[#848e9c]'
+                ? 'bg-[#1c1e2c] text-[#f0b90b]'
+                : 'text-[#3d4354] hover:text-[#6b7280]'
             }`}
           >
             {iv}
           </button>
         ))}
       </div>
-      <div ref={chartContainerRef} className="flex-1 min-h-0" style={{ touchAction: 'none' }} />
+      <div
+        ref={chartContainerRef}
+        className="flex-1 min-h-0"
+        style={{ touchAction: 'none' }}
+      />
     </div>
   );
 }
