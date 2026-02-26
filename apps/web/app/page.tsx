@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar/Navbar";
 import Hero from "../components/Landing/Hero";
-import TickerStrip from "../components/Landing/TickerStrip";
+import MarketShowcase from "../components/Landing/MarketShowcase";
 import MarketOverview from "../components/Landing/MarketOverview";
 import Features from "../components/Landing/Features";
 import CTASection from "../components/Landing/CTASection";
@@ -11,7 +11,7 @@ export default function Home() {
     <div className="h-screen overflow-y-auto overflow-x-hidden bg-[#0e0f14] scrollbar-none">
       <Navbar />
       <Hero />
-      <TickerStrip />
+      <MarketShowcase />
       <MarketOverview />
       <Features />
       <CTASection />
