@@ -30,7 +30,7 @@ export interface Trade {
   timestamp: number;
 }
 
-type MessageType = 'ticker' | 'depth' | 'trade';
+type MessageType = 'ticker' | 'depth' | 'trade' | 'kline';
 
 interface Callback {
   id: string;
@@ -44,7 +44,8 @@ export class SignalingManager {
   private callbacks: Record<MessageType, Callback[]> = {
     ticker: [],
     depth: [],
-    trade: []
+    trade: [],
+    kline: []
   };
   
   private depthCache: Record<string, DepthUpdate> = {};
@@ -104,6 +105,9 @@ export class SignalingManager {
         break;
       case 'trade':
         this.handleTradeUpdate(symbol, data);
+        break;
+      case 'kline':
+        this.handleKlineUpdate(data);
         break;
       default:
         console.warn('⚠️ Unknown message type:', type);
@@ -227,6 +231,12 @@ export class SignalingManager {
       });
   }
 
+  private handleKlineUpdate(data: any) {
+    this.callbacks.kline.forEach(({ callback }) => {
+      callback(data);
+    });
+  }
+
   public registerCallback(type: MessageType, callback: (data: any) => void, id: string) {
     this.callbacks[type].push({ callback, id });
   }
@@ -244,6 +254,12 @@ export class SignalingManager {
 
   public getCachedTrades(symbol: string): Trade[] {
     return this.tradeCache[symbol] || [];
+  }
+
+  public sendRaw(message: any) {
+    if (this.initialized) {
+      this.ws.send(JSON.stringify(message));
+    }
   }
 
   public isConnected(): boolean {

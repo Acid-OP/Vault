@@ -2,8 +2,8 @@
 
 A cryptocurrency exchange platform built from scratch with a microservices architecture.
 
-## Architecture
 
+## Architecture
 - **apps/http** - HTTP API server for orders, depth, and tickers
 - **apps/ws** - WebSocket server for real-time market data streaming
 - **apps/web** - Next.js frontend application

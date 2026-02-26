@@ -14,6 +14,7 @@ interface Kline {
 
 export class KlineManager {
     private currentKlines: Map<string, Kline> = new Map();
+    private klineHistory: Map<string, Kline[]> = new Map();
 
     private getKey(market: string, interval: string): string {
         return `${market}@${interval}`;
@@ -59,6 +60,10 @@ export class KlineManager {
             
             if (currentKline) {
                 currentKline.isClosed = true;
+                const historyKey = this.getKey(market, interval);
+                const history = this.klineHistory.get(historyKey) || [];
+                history.push({ ...currentKline });
+                this.klineHistory.set(historyKey, history);
                 console.log(`[KlineManager] Candle closed for ${market}@${interval} - Close: ${currentKline.close}`);
             }
 
@@ -96,6 +101,14 @@ export class KlineManager {
     public getCurrentKline(market: string, interval: string): Kline | undefined {
         const key = this.getKey(market, interval);
         return this.currentKlines.get(key);
+    }
+
+    public getKlineHistory(market: string, interval: string, limit?: number): Kline[] {
+        const key = this.getKey(market, interval);
+        const history = this.klineHistory.get(key) || [];
+        const current = this.currentKlines.get(key);
+        const all = current ? [...history, current] : [...history];
+        return limit ? all.slice(-limit) : all;
     }
 
     public getAllCurrentKlines(): Kline[] {

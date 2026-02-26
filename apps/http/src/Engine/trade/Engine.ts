@@ -697,43 +697,32 @@ export class Engine {
                     console.log(`[Engine] GET_KLINE received for market:`, message.data.market);
                     try {
                         const market = message.data.market;
-                        const interval = message.data.interval || "1m"; 
-                        
-                        const currentKline = this.klineManager.getCurrentKline(market, interval);
-                        
-                        if (!currentKline) {
-                            console.log(`[Engine] No kline data for ${market}@${interval}`);
-                            RedisManager.getInstance().ResponseToHTTP(clientId, {
-                                type: "KLINE",
-                                payload: {
-                                    symbol: market,
-                                    interval: interval,
-                                    candles: []
-                                }
-                            });
-                        } else {
-                            const klineResponse = {
-                                symbol: market,
-                                interval: interval,
-                                candles: [{
-                                    timestamp: currentKline.openTime,
-                                    closeTime: currentKline.closeTime,
-                                    open: currentKline.open,
-                                    high: currentKline.high,
-                                    low: currentKline.low,
-                                    close: currentKline.close,
-                                    volume: currentKline.volume,
-                                    trades: currentKline.trades,
-                                    isClosed: currentKline.isClosed 
-                                }]
-                            };
-                            
-                            console.log(`[Engine] KLINE response - symbol: ${market}, interval: ${interval}, candles: 1`);
-                            RedisManager.getInstance().ResponseToHTTP(clientId, {
-                                type: "KLINE",
-                                payload: klineResponse
-                            });
-                        }
+                        const interval = message.data.interval || "1m";
+                        const limit = message.data.limit || 500;
+
+                        const candles = this.klineManager.getKlineHistory(market, interval, limit);
+
+                        const klineResponse = {
+                            symbol: market,
+                            interval: interval,
+                            candles: candles.map(k => ({
+                                timestamp: k.openTime,
+                                closeTime: k.closeTime,
+                                open: k.open,
+                                high: k.high,
+                                low: k.low,
+                                close: k.close,
+                                volume: k.volume,
+                                trades: k.trades,
+                                isClosed: k.isClosed
+                            }))
+                        };
+
+                        console.log(`[Engine] KLINE response - symbol: ${market}, interval: ${interval}, candles: ${candles.length}`);
+                        RedisManager.getInstance().ResponseToHTTP(clientId, {
+                            type: "KLINE",
+                            payload: klineResponse
+                        });
                     } catch (e) {
                         console.error("[Engine] Error during GET_KLINE:", e);
                         RedisManager.getInstance().ResponseToHTTP(clientId, {

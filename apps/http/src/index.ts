@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import "./Engine/main/dequeue";
 import cors from "cors";
 import { Manager } from "./RedisClient";
-import { CANCEL_ORDER, CREATE_ORDER, GET_DEPTH, GET_TICKER } from "./types/orders";
+import { CANCEL_ORDER, CREATE_ORDER, GET_DEPTH, GET_KLINE, GET_TICKER } from "./types/orders";
 
 dotenv.config();
 const app = express();
@@ -86,6 +86,25 @@ app.get("/tickers", async (req, res) => {
     res.json(response.payload);
   } catch (e) {
     console.error("❌ Error in /tickers:", e);
+  }
+});
+
+app.get("/klines", async (req, res) => {
+  const { symbol, interval, limit } = req.query;
+  console.log("📊 GET /klines:", { symbol, interval, limit });
+  try {
+    const response = await Manager.getInstance().Enqueue({
+      type: GET_KLINE,
+      data: {
+        market: symbol as string,
+        interval: (interval as string) || "1m",
+        limit: limit ? parseInt(limit as string) : 500,
+      },
+    });
+    res.json(response.payload);
+  } catch (e) {
+    console.error("❌ Error in /klines:", e);
+    res.status(500).send({ error: "Failed to get klines" });
   }
 });
 
