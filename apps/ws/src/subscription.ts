@@ -10,8 +10,9 @@ export class Subscription {
     private readyPromise: Promise<void>; 
 
     constructor() {
-        this.redisClient = createClient();
-        this.readyPromise = this.initRedis(); 
+        const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+        this.redisClient = createClient({ url: redisUrl });
+        this.readyPromise = this.initRedis();
     }
 
     private async initRedis(): Promise<void> {

@@ -7,12 +7,14 @@ export class Manager {
     private static instance: Manager;
 
     private constructor() {
-        this.client = createClient();
+        const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+
+        this.client = createClient({ url: redisUrl });
         this.client.connect()
             .then(() => console.log("🔗 Redis client connected successfully"))
             .catch((err) => console.error("❌ Redis client connection failed:", err));
 
-        this.pubSubClient = createClient();
+        this.pubSubClient = createClient({ url: redisUrl });
         this.pubSubClient.connect()
             .then(() => console.log("🔗 Redis PubSub client connected successfully"))
             .catch((err) => console.error("❌ Redis PubSub client connection failed:", err));

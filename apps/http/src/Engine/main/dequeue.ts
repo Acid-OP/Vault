@@ -1,6 +1,8 @@
 import { Engine } from "../trade/Engine";
 const { createClient } = require("redis");
-const client = createClient();
+
+const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+const client = createClient({ url: redisUrl });
 
 async function main() {
   console.log("🚀 Dequeue process starting...");
