@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface Order {
   price: string;
@@ -11,29 +11,54 @@ interface BidOrdersProps {
   maxTotal: number;
   calculateBarWidth: (total: string, maxTotal: number) => number;
   calculateSizeBarWidth: (size: string, maxTotal: number) => number;
+  flashPrices: Set<string>;
 }
 
-export function BidOrders({ bids, maxTotal, calculateBarWidth, calculateSizeBarWidth }: BidOrdersProps) {
+export function BidOrders({
+  bids,
+  maxTotal,
+  calculateBarWidth,
+  calculateSizeBarWidth,
+  flashPrices,
+}: BidOrdersProps) {
   return (
     <div className="flex-shrink-0">
-      {bids.map((bid, idx) => (
-        <div
-          key={`bid-${idx}`}
-          className="relative grid grid-cols-3 px-3 py-[2.5px] hover:bg-[#1a1b23] cursor-pointer transition-colors"
-        >
+      {bids.map((bid) => {
+        const isFlashing = flashPrices.has(bid.price);
+        return (
           <div
-            className="absolute right-0 top-0 bottom-0 bg-[#0e2d23] transition-all duration-150"
-            style={{ width: `${calculateBarWidth(bid.total, maxTotal)}%` }}
-          />
-          <div
-            className="absolute right-0 top-0 bottom-0 bg-[#0d4d37] transition-all duration-150"
-            style={{ width: `${calculateSizeBarWidth(bid.size, maxTotal)}%` }}
-          />
-          <div className="text-[#0ecb81] text-[11px] font-mono z-10 tabular-nums">{bid.price}</div>
-          <div className="text-right text-[11px] font-mono text-[#b7bdc6] z-10 tabular-nums">{bid.size}</div>
-          <div className="text-right text-[11px] font-mono text-[#b7bdc6] z-10 tabular-nums">{bid.total}</div>
-        </div>
-      ))}
+            key={bid.price}
+            className={`relative grid grid-cols-3 px-3 py-[2px] cursor-pointer group ${
+              isFlashing ? "animate-flash-green" : ""
+            }`}
+          >
+            <div
+              className="absolute right-0 top-0 bottom-0 transition-all duration-300 ease-out"
+              style={{
+                width: `${calculateBarWidth(bid.total, maxTotal)}%`,
+                background:
+                  "linear-gradient(to left, rgba(0, 193, 118, 0.08), rgba(0, 193, 118, 0.03))",
+              }}
+            />
+            <div
+              className="absolute right-0 top-0 bottom-0 transition-all duration-300 ease-out"
+              style={{
+                width: `${calculateSizeBarWidth(bid.size, maxTotal)}%`,
+                background: "rgba(0, 193, 118, 0.15)",
+              }}
+            />
+            <div className="text-[#00c176] text-[10.5px] font-mono z-10 tabular-nums group-hover:brightness-125">
+              {bid.price}
+            </div>
+            <div className="text-right text-[10.5px] font-mono text-[#848e9c] z-10 tabular-nums">
+              {bid.size}
+            </div>
+            <div className="text-right text-[10.5px] font-mono text-[#5e6673] z-10 tabular-nums">
+              {bid.total}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

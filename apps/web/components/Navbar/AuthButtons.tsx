@@ -1,19 +1,20 @@
 interface ButtonProps {
-  variant: 'outline' | 'solid';
+  variant: "outline" | "solid";
   children: React.ReactNode;
   onClick?: () => void;
 }
 
 function Button({ variant, children, onClick }: ButtonProps) {
-  const baseStyles = "px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer";
-  
+  const baseStyles =
+    "px-3.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-200 cursor-pointer";
+
   const variantStyles = {
-    outline: "bg-[#0d2c24] border border-[#0d2c24] text-[#00D395] hover:bg-[#0d2c24]/60 hover:text-[#00D395]/80",
-    solid: "bg-[#18243a] border border-[#18243a] text-[#3E7EE2] hover:bg-[#18243a]/60 hover:text-[#3E7EE2]/80"
+    outline: "bg-[#00c176]/10 text-[#00c176] hover:bg-[#00c176]/15",
+    solid: "bg-[#3b82f6]/10 text-[#3b82f6] hover:bg-[#3b82f6]/15",
   };
 
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`${baseStyles} ${variantStyles[variant]}`}
     >
@@ -24,13 +25,9 @@ function Button({ variant, children, onClick }: ButtonProps) {
 
 export default function AuthButtons() {
   return (
-    <div className="flex items-center space-x-3 ml-auto">
-      <Button variant="outline">
-        Sign up
-      </Button>
-      <Button variant="solid">
-        Sign in
-      </Button>
+    <div className="flex items-center space-x-2 ml-auto">
+      <Button variant="outline">Sign up</Button>
+      <Button variant="solid">Sign in</Button>
     </div>
   );
 }

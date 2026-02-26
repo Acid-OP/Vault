@@ -4,7 +4,7 @@ import ThreeSections from "../components/Hero/ThreeSections";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0f0f14]">
+    <div className="min-h-screen bg-[#0e0f14]">
       <Navbar />
       <Hero />
       <ThreeSections />

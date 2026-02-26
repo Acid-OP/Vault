@@ -22,47 +22,59 @@ const OrderTabs: React.FC<OrderTabsProps> = ({
 
   return (
     <div>
-      <div className="flex mb-3 gap-1">
+      <div className="flex mb-2.5 gap-0.5">
         <button
           onClick={() => handleClick("limit")}
-          className={`px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors rounded ${
+          className={`px-2 py-1 text-[10px] font-medium cursor-pointer transition-colors rounded-[4px] ${
             orderType === "limit"
-              ? "text-white bg-[#2a2b35]"
-              : "text-[#4a5068] hover:text-[#848e9c]"
+              ? "text-[#eaecef] bg-[#1c1e2c]"
+              : "text-[#3d4354] hover:text-[#848e9c]"
           }`}
         >
           Limit
         </button>
         <button
           onClick={() => handleClick("market")}
-          className={`px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors rounded ${
+          className={`px-2 py-1 text-[10px] font-medium cursor-pointer transition-colors rounded-[4px] ${
             orderType === "market"
-              ? "text-white bg-[#2a2b35]"
-              : "text-[#4a5068] hover:text-[#848e9c]"
+              ? "text-[#eaecef] bg-[#1c1e2c]"
+              : "text-[#3d4354] hover:text-[#848e9c]"
           }`}
         >
           Market
         </button>
         <button
           onClick={() => handleClick("conditional")}
-          className={`px-2.5 py-1 text-xs font-medium cursor-pointer transition-colors rounded flex items-center gap-1 ${
+          className={`px-2 py-1 text-[10px] font-medium cursor-pointer transition-colors rounded-[4px] flex items-center gap-0.5 ${
             orderType === "conditional"
-              ? "text-white bg-[#2a2b35]"
-              : "text-[#4a5068] hover:text-[#848e9c]"
+              ? "text-[#eaecef] bg-[#1c1e2c]"
+              : "text-[#3d4354] hover:text-[#848e9c]"
           }`}
         >
           Conditional
-          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <svg
+            className="w-2 h-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </button>
       </div>
 
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-[11px] text-[#4a5068] border-b border-dashed border-[#2a2b35]">
+      <div className="flex justify-between items-center mb-2.5">
+        <span className="text-[9px] text-[#3d4354] uppercase tracking-wider border-b border-dashed border-[rgba(42,46,57,0.4)]">
           Balance
         </span>
-        <span className="text-[11px] text-[#eaecef]">{balance}</span>
+        <span className="text-[10px] text-[#848e9c] font-mono tabular-nums">
+          {balance}
+        </span>
       </div>
     </div>
   );

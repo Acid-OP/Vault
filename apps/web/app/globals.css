@@ -23,3 +23,21 @@ html, body {
 canvas {
   image-rendering: -webkit-optimize-contrast;
 }
+
+@keyframes flash-green {
+  0% { background-color: rgba(0, 193, 118, 0.25); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(234, 57, 65, 0.25); }
+  100% { background-color: transparent; }
+}
+
+.animate-flash-green {
+  animation: flash-green 400ms ease-out 1;
+}
+
+.animate-flash-red {
+  animation: flash-red 400ms ease-out 1;
+}
