@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { SignalingManager, Ticker } from '../../utils/Manager';
+import { getTicker } from '../../utils/httpClient';
 
 export function MarketBar({ market }: { market: string }) {
   const [base, quote] = market.split('_');
@@ -12,6 +13,25 @@ export function MarketBar({ market }: { market: string }) {
     const callbackId = `marketbar-${market}`;
 
     manager.subscribe(market);
+
+    // Fetch initial ticker via HTTP
+    getTicker(market).then((data: any) => {
+      if (data && data.symbol) {
+        setMarketData({
+          symbol: data.symbol,
+          lastPrice: data.price || '0',
+          priceChange: data.priceChange || '0',
+          priceChangePercent: data.priceChangePercent || '0',
+          high24h: data.high24h || '0',
+          low24h: data.low24h || '0',
+          volume24h: data.volume24h || '0',
+          quoteVolume24h: data.quoteVolume24h || '0',
+          lastQuantity: data.quantity || '0',
+          lastSide: data.side || 'buy',
+          timestamp: data.timestamp || Date.now()
+        });
+      }
+    }).catch(err => console.error('Failed to fetch initial ticker:', err));
 
     manager.registerCallback('ticker', (ticker: Ticker) => {
       if (ticker.symbol === market) {

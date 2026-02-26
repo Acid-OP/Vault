@@ -53,7 +53,7 @@ export class SignalingManager {
   private pendingSubscriptions: string[] = [];
 
   private constructor() {
-    this.ws = new WebSocket('ws://localhost:8080');
+    this.ws = new WebSocket('ws://localhost:3002');
     this.init();
   }
 
@@ -140,9 +140,9 @@ export class SignalingManager {
     const subscribeMessage = {
       method: "SUBSCRIBE",
       params: [
-        `${symbol}@depth`,
-        `${symbol}@trade`,
-        `${symbol}@ticker`
+        `depth@${symbol}`,
+        `trade@${symbol}`,
+        `ticker@${symbol}`
       ]
     };
     
@@ -158,9 +158,9 @@ export class SignalingManager {
     const unsubscribeMessage = {
       method: "UNSUBSCRIBE",
       params: [
-        `${symbol}@depth`,
-        `${symbol}@trade`,
-        `${symbol}@ticker`
+        `depth@${symbol}`,
+        `trade@${symbol}`,
+        `ticker@${symbol}`
       ]
     };
 

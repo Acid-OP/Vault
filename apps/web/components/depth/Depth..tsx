@@ -7,6 +7,7 @@ import BidOrders from './BidOrders';
 import CurrentPrice from './CurrentPrice';
 import AskOrders from './AskOrders';
 import { SignalingManager, DepthUpdate } from '../../utils/Manager';
+import { getDepth } from '../../utils/httpClient';
 
 interface Order {
   price: string;
@@ -36,6 +37,26 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
 
     console.log('🔧 [Orderbook] Subscribing to market:', market);
     manager.subscribe(market);
+
+    // Fetch initial depth via HTTP
+    getDepth(market).then((depth) => {
+      if (depth && depth.bids && depth.asks) {
+        const validBids = depth.bids.filter(([, size]: [string, string]) => parseFloat(size) > 0);
+        const validAsks = depth.asks.filter(([, size]: [string, string]) => parseFloat(size) > 0);
+        let bidTotal = 0;
+        setBids(validBids.map(([price, size]: [string, string]) => {
+          bidTotal += parseFloat(size);
+          return { price: parseFloat(price).toFixed(2), size: parseFloat(size).toFixed(2), total: bidTotal.toFixed(2) };
+        }));
+        let askTotal = 0;
+        setAsks(validAsks.map(([price, size]: [string, string]) => {
+          askTotal += parseFloat(size);
+          return { price: parseFloat(price).toFixed(2), size: parseFloat(size).toFixed(2), total: askTotal.toFixed(2) };
+        }));
+        const total = bidTotal + askTotal;
+        if (total > 0) setBuyPercentage((bidTotal / total) * 100);
+      }
+    }).catch(err => console.error('Failed to fetch initial depth:', err));
 
     manager.registerCallback('depth', (depth: DepthUpdate) => {
       console.log('📦 [Orderbook] Depth callback triggered:', depth);
