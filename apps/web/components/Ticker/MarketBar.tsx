@@ -47,61 +47,64 @@ export function MarketBar({ market }: { market: string }) {
 
   if (!marketData) {
     return (
-      <div className="flex items-center gap-8 px-6 py-4 bg-[#14151b] border-b border-[#1a1a1a] rounded-lg">
-        <div className="text-gray-400">Loading market data...</div>
+      <div className="flex items-center gap-6 px-4 py-2.5 bg-[#14151b] rounded-lg">
+        <div className="text-[#555a68] text-xs">Loading market data...</div>
       </div>
     );
   }
 
   const isNegative = marketData.priceChangePercent.startsWith('-');
+  const changeColor = isNegative ? 'text-[#f6465d]' : 'text-[#0ecb81]';
 
   return (
-    <div className="flex items-center gap-8 px-6 py-4 bg-[#14151b] border-b border-[#1a1a1a] rounded-lg">
-      <div className="flex items-center gap-3 bg-[#202127] px-3 py-2 rounded-xl min-w-[140px]">
-        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+    <div className="flex items-center gap-5 px-4 py-2 bg-[#14151b] rounded-lg">
+      <div className="flex items-center gap-2.5 pr-5 border-r border-[#1c1d25]">
+        <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
           {base?.charAt(0)}
         </div>
-        <div className="flex items-center gap-0.5">
-          <span className="text-white font-medium text-lg">{base}</span>
-          <span className="text-[#7d8492] font-medium text-lg">/</span>
-          <span className="text-[#7d8492] font-medium text-lg">{quote}</span>
+        <div className="flex items-baseline gap-0.5">
+          <span className="text-white font-semibold text-sm">{base}</span>
+          <span className="text-[#555a68] text-sm">/</span>
+          <span className="text-[#555a68] text-sm">{quote}</span>
         </div>
       </div>
 
-      <div className="flex flex-col">
-        <div className={`text-xl font-medium ${isNegative ? 'text-red-500' : 'text-green-500'}`}>
+      <div className="flex flex-col pr-5 border-r border-[#1c1d25]">
+        <span className={`text-lg font-semibold font-mono tabular-nums ${changeColor}`}>
           {marketData.lastPrice}
-        </div>
-        <div className="text-sm text-white">
+        </span>
+        <span className="text-[10px] text-[#555a68] font-mono">
           ${marketData.lastPrice}
-        </div>
+        </span>
       </div>
 
-      <div className="flex flex-col">
-        <div className="text-xs text-gray-400 mb-1">24H Change</div>
-        <div className={`text-sm font-medium ${isNegative ? 'text-red-500' : 'text-green-500'}`}>
-          {marketData.priceChange} {marketData.priceChangePercent}%
+      <div className="flex items-center gap-5">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-[#555a68]">24h Change</span>
+          <span className={`text-xs font-medium font-mono tabular-nums ${changeColor}`}>
+            {isNegative ? '' : '+'}{marketData.priceChange} ({marketData.priceChangePercent}%)
+          </span>
         </div>
-      </div>
 
-      <div className="flex flex-col">
-        <div className="text-xs text-gray-400 mb-1">24H High</div>
-        <div className="text-sm text-white font-medium">
-          {marketData.high24h}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-[#555a68]">24h High</span>
+          <span className="text-xs text-[#eaecef] font-mono tabular-nums">
+            {marketData.high24h}
+          </span>
         </div>
-      </div>
 
-      <div className="flex flex-col">
-        <div className="text-xs text-gray-400 mb-1">24H Low</div>
-        <div className="text-sm text-white font-medium">
-          {marketData.low24h}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-[#555a68]">24h Low</span>
+          <span className="text-xs text-[#eaecef] font-mono tabular-nums">
+            {marketData.low24h}
+          </span>
         </div>
-      </div>
 
-      <div className="flex flex-col">
-        <div className="text-xs text-gray-400 mb-1">24H Volume ({quote})</div>
-        <div className="text-sm text-white font-medium">
-          {marketData.volume24h}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-[#555a68]">24h Vol({quote})</span>
+          <span className="text-xs text-[#eaecef] font-mono tabular-nums">
+            {marketData.volume24h}
+          </span>
         </div>
       </div>
     </div>

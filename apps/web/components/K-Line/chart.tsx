@@ -37,12 +37,21 @@ export default function KLineChart({ market }: KLineChartProps) {
         const volumes = data.candles.map((c: any) => ({
           time: (Math.floor(c.timestamp / 1000)) as Time,
           value: c.volume,
-          color: c.close >= c.open ? 'rgba(38, 166, 154, 0.3)' : 'rgba(239, 83, 80, 0.3)',
+          color: c.close >= c.open ? 'rgba(14, 203, 129, 0.2)' : 'rgba(246, 70, 93, 0.2)',
         }));
 
         if (candles.length > 0) {
           candlestickSeriesRef.current.setData(candles);
           volumeSeriesRef.current.setData(volumes);
+
+          if (chartRef.current) {
+            const ts = chartRef.current.timeScale();
+            const visibleBars = 80;
+            ts.setVisibleLogicalRange({
+              from: candles.length - visibleBars,
+              to: candles.length + 5,
+            });
+          }
         }
       } catch (err) {
         console.error('Failed to fetch klines:', err);
@@ -80,7 +89,7 @@ export default function KLineChart({ market }: KLineChartProps) {
       volumeSeriesRef.current.update({
         time,
         value: k.volume,
-        color: k.close >= k.open ? 'rgba(38, 166, 154, 0.3)' : 'rgba(239, 83, 80, 0.3)',
+        color: k.close >= k.open ? 'rgba(14, 203, 129, 0.2)' : 'rgba(246, 70, 93, 0.2)',
       });
     }, callbackId);
 
@@ -100,34 +109,64 @@ export default function KLineChart({ market }: KLineChartProps) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: '#14151b' },
-        textColor: '#7d8492',
+        textColor: '#555a68',
+        fontSize: 11,
       },
       grid: {
-        vertLines: { color: '#1e1f26' },
-        horzLines: { color: '#1e1f26' },
+        vertLines: { color: '#1c1d25' },
+        horzLines: { color: '#1c1d25' },
       },
       crosshair: {
         mode: 0,
+        vertLine: {
+          color: '#555a68',
+          width: 1,
+          style: 3,
+          labelBackgroundColor: '#2a2a3a',
+        },
+        horzLine: {
+          color: '#555a68',
+          width: 1,
+          style: 3,
+          labelBackgroundColor: '#2a2a3a',
+        },
       },
       rightPriceScale: {
-        borderColor: '#2a2a3a',
+        borderColor: '#1c1d25',
+        scaleMargins: { top: 0.15, bottom: 0.25 },
       },
       timeScale: {
-        borderColor: '#2a2a3a',
+        borderColor: '#1c1d25',
         timeVisible: true,
         secondsVisible: false,
+        barSpacing: 6,
+        minBarSpacing: 1,
+        rightOffset: 5,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+      },
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        axisPressedMouseMove: { time: true, price: false },
+        mouseWheel: true,
+        pinch: true,
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
     });
 
     const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderDownColor: '#ef5350',
-      borderUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-      wickUpColor: '#26a69a',
+      upColor: '#0ecb81',
+      downColor: '#f6465d',
+      borderDownColor: '#f6465d',
+      borderUpColor: '#0ecb81',
+      wickDownColor: '#f6465d',
+      wickUpColor: '#0ecb81',
     });
 
     const volumeSeries = chart.addHistogramSeries({
@@ -161,22 +200,22 @@ export default function KLineChart({ market }: KLineChartProps) {
 
   return (
     <div className="flex flex-col h-full bg-[#14151b] rounded-lg overflow-hidden">
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-[#1e1f26]">
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-[#1c1d25]">
         {INTERVALS.map((iv) => (
           <button
             key={iv}
             onClick={() => setInterval(iv)}
-            className={`px-2.5 py-1 text-xs rounded ${
+            className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
               interval === iv
-                ? 'bg-[#2a2a3a] text-white'
-                : 'text-[#7d8492] hover:text-white'
+                ? 'bg-[#2a2b35] text-[#f0b90b]'
+                : 'text-[#555a68] hover:text-[#848e9c]'
             }`}
           >
             {iv}
           </button>
         ))}
       </div>
-      <div ref={chartContainerRef} className="flex-1" />
+      <div ref={chartContainerRef} className="flex-1 min-h-0" style={{ touchAction: 'none' }} />
     </div>
   );
 }

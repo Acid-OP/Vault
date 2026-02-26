@@ -10,24 +10,22 @@ export default function Home() {
     const [baseAsset, quoteAsset] = (market?.toString() || "BTC-USDT").split("_");
     const base = baseAsset as string;
     const quote = quoteAsset as string;
-    return <div className="flex flex-row min-h-screen bg-[#0f0f14] gap-2 p-4 pt-0">
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
+    return <div className="flex flex-row h-full bg-[#0e0f14] gap-1.5 p-2 pt-1 overflow-hidden">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0 gap-1.5">
             <div className="shrink-0">
                 <MarketBar market={market as string} />
             </div>
-            <div className="flex flex-row flex-1 min-h-0 overflow-hidden gap-2">
-                <div className="flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
-                    <div className="flex-1 min-h-0">
-                        <KLineChart market={market as string} />
-                    </div>
+            <div className="flex flex-row flex-1 min-h-0 gap-1.5">
+                <div className="flex-1 min-w-0 min-h-0">
+                    <KLineChart market={market as string} />
                 </div>
-                <div className="w-[300px] bg-[#14151b] rounded-lg">
+                <div className="w-[280px] shrink-0 bg-[#14151b] rounded-lg overflow-hidden">
                     <Orderbook market={market as string} baseAsset={base} quoteAsset={quote} />
                 </div>
             </div>
         </div>
-        <div className="shrink-0 overflow-hidden">
-            <div className="flex flex-col w-[340px] h-full bg-[#14151b] rounded-lg">
+        <div className="w-[300px] shrink-0">
+            <div className="flex flex-col h-full bg-[#14151b] rounded-lg overflow-hidden">
                 <SwapUI market={market as string}/>
             </div>
         </div>

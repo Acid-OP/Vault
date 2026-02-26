@@ -7,10 +7,10 @@ interface OrderbookHeaderProps {
 
 export function OrderbookHeader({ baseAsset, quoteAsset }: OrderbookHeaderProps) {
   return (
-    <div className="grid grid-cols-3 px-4 py-2 text-xs">
-      <div className="text-left text-white font-medium">Price ({quoteAsset})</div>
-      <div className="text-right text-gray-400">Size ({baseAsset})</div>
-      <div className="text-right text-gray-400">Total ({baseAsset})</div>
+    <div className="grid grid-cols-3 px-3 py-1.5 text-[10px] border-b border-[#1c1d25]">
+      <div className="text-left text-[#555a68] font-medium">Price({quoteAsset})</div>
+      <div className="text-right text-[#555a68] font-medium">Size({baseAsset})</div>
+      <div className="text-right text-[#555a68] font-medium">Total({baseAsset})</div>
     </div>
   );
 }

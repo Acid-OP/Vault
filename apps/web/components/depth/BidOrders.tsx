@@ -15,24 +15,23 @@ interface BidOrdersProps {
 
 export function BidOrders({ bids, maxTotal, calculateBarWidth, calculateSizeBarWidth }: BidOrdersProps) {
   return (
-    <div className="flex-shrink-0 space-y-[3.5px]">
+    <div className="flex-shrink-0">
       {bids.map((bid, idx) => (
         <div
           key={`bid-${idx}`}
-          className="relative grid grid-cols-3 px-4 py-0.5 hover:bg-gray-900 cursor-pointer"
+          className="relative grid grid-cols-3 px-3 py-[2.5px] hover:bg-[#1a1b23] cursor-pointer transition-colors"
         >
-          {/* Light shade - Cumulative Total */}
           <div
-            className="absolute right-0 top-0 bottom-0 bg-[#11312a]"
+            className="absolute right-0 top-0 bottom-0 bg-[#0e2d23] transition-all duration-150"
             style={{ width: `${calculateBarWidth(bid.total, maxTotal)}%` }}
-          ></div>
+          />
           <div
-            className="absolute right-0 top-0 bottom-0 bg-[#0c5f43]"
+            className="absolute right-0 top-0 bottom-0 bg-[#0d4d37] transition-all duration-150"
             style={{ width: `${calculateSizeBarWidth(bid.size, maxTotal)}%` }}
-          ></div>
-          <div className="text-[#03905c] text-sm z-10">{bid.price}</div>
-          <div className="text-right text-xs z-10">{bid.size}</div>
-          <div className="text-right text-xs z-10">{bid.total}</div>
+          />
+          <div className="text-[#0ecb81] text-[11px] font-mono z-10 tabular-nums">{bid.price}</div>
+          <div className="text-right text-[11px] font-mono text-[#b7bdc6] z-10 tabular-nums">{bid.size}</div>
+          <div className="text-right text-[11px] font-mono text-[#b7bdc6] z-10 tabular-nums">{bid.total}</div>
         </div>
       ))}
     </div>

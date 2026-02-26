@@ -149,16 +149,18 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
   console.log('🎨 [Orderbook] Rendering - Bids:', bids.length, 'Asks:', asks.length);
 
   return (
-    <div className="flex flex-col h-full text-gray-100 text-sm">
+    <div className="flex flex-col h-full text-gray-100 text-xs select-none">
       <div className="flex-shrink-0">
         <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
-        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+        <div className="flex items-center justify-between px-3 py-1">
+          <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+        </div>
         <OrderbookHeader baseAsset={baseAsset} quoteAsset={quoteAsset} />
       </div>
       
       <div className="flex-1 flex flex-col min-h-0">
         <div className="flex-1 flex flex-col justify-end overflow-hidden">
-          <div className="overflow-y-auto flex flex-col-reverse">
+          <div className="overflow-y-auto scrollbar-none flex flex-col-reverse">
             <AskOrders
               asks={asks}
               maxTotal={maxTotal}
@@ -168,7 +170,7 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
           </div>
         </div>
         
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 border-y border-[#1c1d25]">
           <CurrentPrice
             currentPrice={currentPrice}
             priceChange={priceChange}
@@ -176,7 +178,7 @@ const Orderbook: React.FC<OrderbookProps> = ({ market, baseAsset, quoteAsset }) 
         </div>
         
         <div className="flex-1 overflow-hidden">
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto scrollbar-none h-full">
             <BidOrders
               bids={bids}
               maxTotal={maxTotal}

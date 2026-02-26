@@ -9,46 +9,46 @@ interface ViewToggleProps {
 
 export function ViewToggle({ viewMode, setViewMode }: ViewToggleProps) {
   return (
-    <div className="flex items-center gap-2 px-4 py-1 border-gray-800">
+    <div className="flex items-center gap-1">
       <button
         onClick={() => setViewMode('both')}
-        className={`px-2 py-1.5 hover:bg-[#202127] rounded transition-colors cursor-pointer ${
-          viewMode === 'both' ? 'bg-[#202127]' : ''
+        className={`p-1.5 rounded transition-colors cursor-pointer ${
+          viewMode === 'both' ? 'bg-[#2a2b35]' : 'hover:bg-[#1e1f28]'
         }`}
       >
-        <div className="flex flex-col gap-0.5">
-          <div className="w-3 h-0.5 bg-emerald-500"></div>
-          <div className="w-3 h-0.5 bg-emerald-500"></div>
-          <div className="w-3 h-0.5 bg-red-500"></div>
-          <div className="w-3 h-0.5 bg-red-500"></div>
+        <div className="flex flex-col gap-[2px]">
+          <div className="w-2.5 h-[2px] bg-[#0ecb81] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#0ecb81] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#f6465d] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#f6465d] rounded-full"></div>
         </div>
       </button>
 
       <button
         onClick={() => setViewMode('sell')}
-        className={`px-2 py-1.5 hover:bg-[#202127] rounded transition-colors cursor-pointer ${
-          viewMode === 'sell' ? 'bg-[#202127]' : ''
+        className={`p-1.5 rounded transition-colors cursor-pointer ${
+          viewMode === 'sell' ? 'bg-[#2a2b35]' : 'hover:bg-[#1e1f28]'
         }`}
       >
-        <div className="flex flex-col gap-0.5">
-          <div className="w-3 h-0.5 bg-red-500"></div>
-          <div className="w-3 h-0.5 bg-red-500"></div>
-          <div className="w-3 h-0.5 bg-red-500"></div>
-          <div className="w-3 h-0.5 bg-red-500"></div>
+        <div className="flex flex-col gap-[2px]">
+          <div className="w-2.5 h-[2px] bg-[#f6465d] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#f6465d] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#f6465d] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#f6465d] rounded-full"></div>
         </div>
       </button>
 
       <button
         onClick={() => setViewMode('buy')}
-        className={`px-2 py-1.5 hover:bg-[#202127] rounded transition-colors cursor-pointer ${
-          viewMode === 'buy' ? 'bg-[#202127]' : ''
+        className={`p-1.5 rounded transition-colors cursor-pointer ${
+          viewMode === 'buy' ? 'bg-[#2a2b35]' : 'hover:bg-[#1e1f28]'
         }`}
       >
-        <div className="flex flex-col gap-0.5">
-          <div className="w-3 h-0.5 bg-emerald-500"></div>
-          <div className="w-3 h-0.5 bg-emerald-500"></div>
-          <div className="w-3 h-0.5 bg-emerald-500"></div>
-          <div className="w-3 h-0.5 bg-emerald-500"></div>
+        <div className="flex flex-col gap-[2px]">
+          <div className="w-2.5 h-[2px] bg-[#0ecb81] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#0ecb81] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#0ecb81] rounded-full"></div>
+          <div className="w-2.5 h-[2px] bg-[#0ecb81] rounded-full"></div>
         </div>
       </button>
     </div>
