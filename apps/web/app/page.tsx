@@ -1,13 +1,21 @@
-import Hero from "../components/Hero/Hero";
 import Navbar from "../components/Navbar/Navbar";
-import ThreeSections from "../components/Hero/ThreeSections";
+import Hero from "../components/Landing/Hero";
+import TickerStrip from "../components/Landing/TickerStrip";
+import MarketOverview from "../components/Landing/MarketOverview";
+import Features from "../components/Landing/Features";
+import CTASection from "../components/Landing/CTASection";
+import Footer from "../components/Landing/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0e0f14]">
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-[#0e0f14] scrollbar-none">
       <Navbar />
       <Hero />
-      <ThreeSections />
+      <TickerStrip />
+      <MarketOverview />
+      <Features />
+      <CTASection />
+      <Footer />
     </div>
   );
 }
