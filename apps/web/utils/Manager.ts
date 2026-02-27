@@ -10,14 +10,14 @@ export interface Ticker {
   volume24h: string;
   quoteVolume24h: string;
   lastQuantity: string;
-  lastSide: 'buy' | 'sell';
+  lastSide: "buy" | "sell";
   timestamp: number;
 }
 
 export interface DepthUpdate {
   symbol: string;
-  bids: [string, string][]; 
-  asks: [string, string][]; 
+  bids: [string, string][];
+  asks: [string, string][];
   buyPercentage?: number;
   timestamp: number;
 }
@@ -26,11 +26,11 @@ export interface Trade {
   symbol: string;
   price: string;
   quantity: string;
-  side: 'buy' | 'sell';
+  side: "buy" | "sell";
   timestamp: number;
 }
 
-type MessageType = 'ticker' | 'depth' | 'trade' | 'kline';
+type MessageType = "ticker" | "depth" | "trade" | "kline";
 
 interface Callback {
   id: string;
@@ -45,16 +45,16 @@ export class SignalingManager {
     ticker: [],
     depth: [],
     trade: [],
-    kline: []
+    kline: [],
   };
-  
+
   private depthCache: Record<string, DepthUpdate> = {};
   private tradeCache: Record<string, Trade[]> = {};
   private subscribedSymbols: Set<string> = new Set();
   private pendingSubscriptions: string[] = [];
 
   private constructor() {
-    this.ws = new WebSocket('ws://localhost:3002');
+    this.ws = new WebSocket("ws://localhost:3002");
     this.init();
   }
 
@@ -67,59 +67,64 @@ export class SignalingManager {
 
   private init() {
     this.ws.onopen = () => {
-      console.log('✅ WebSocket Connected');
+      console.log("✅ WebSocket Connected");
       this.initialized = true;
-      
-      this.pendingSubscriptions.forEach(symbol => {
+
+      this.pendingSubscriptions.forEach((symbol) => {
         this.sendSubscribe(symbol);
       });
       this.pendingSubscriptions = [];
+
+      this.pendingMessages.forEach((msg) => {
+        this.ws.send(JSON.stringify(msg));
+      });
+      this.pendingMessages = [];
     };
 
     this.ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      console.log('📩 Message received:', message);
-      
+      console.log("📩 Message received:", message);
+
       const type = message.type as MessageType;
       const data = message.data;
-      
+
       if (!type || !data) {
-        console.warn('⚠️ Invalid message format:', message);
+        console.warn("⚠️ Invalid message format:", message);
         return;
       }
-  
-    const symbol = data.symbol; 
-    
-    if (!symbol) {
-      console.warn('⚠️ No symbol in message:', message);
-      return;
-    }
-    console.log(`🎯 Processing ${type} for ${symbol}`);
 
-    switch (type) {
-      case 'ticker':
-        this.handleTickerUpdate(symbol, data);
-        break;
-      case 'depth':
-        this.handleDepthUpdate(symbol, data);
-        break;
-      case 'trade':
-        this.handleTradeUpdate(symbol, data);
-        break;
-      case 'kline':
-        this.handleKlineUpdate(data);
-        break;
-      default:
-        console.warn('⚠️ Unknown message type:', type);
-    }
-  };
+      const symbol = data.symbol;
+
+      if (!symbol) {
+        console.warn("⚠️ No symbol in message:", message);
+        return;
+      }
+      console.log(`🎯 Processing ${type} for ${symbol}`);
+
+      switch (type) {
+        case "ticker":
+          this.handleTickerUpdate(symbol, data);
+          break;
+        case "depth":
+          this.handleDepthUpdate(symbol, data);
+          break;
+        case "trade":
+          this.handleTradeUpdate(symbol, data);
+          break;
+        case "kline":
+          this.handleKlineUpdate(data);
+          break;
+        default:
+          console.warn("⚠️ Unknown message type:", type);
+      }
+    };
 
     this.ws.onerror = (error) => {
-      console.error('❌ WebSocket Error:', error);
+      console.error("❌ WebSocket Error:", error);
     };
 
     this.ws.onclose = () => {
-      console.log('🔴 WebSocket Disconnected');
+      console.log("🔴 WebSocket Disconnected");
       this.initialized = false;
     };
   }
@@ -143,15 +148,11 @@ export class SignalingManager {
   private sendSubscribe(symbol: string) {
     const subscribeMessage = {
       method: "SUBSCRIBE",
-      params: [
-        `depth@${symbol}`,
-        `trade@${symbol}`,
-        `ticker@${symbol}`
-      ]
+      params: [`depth@${symbol}`, `trade@${symbol}`, `ticker@${symbol}`],
     };
-    
+
     this.ws.send(JSON.stringify(subscribeMessage));
-    console.log('📤 Subscription sent:', subscribeMessage);
+    console.log("📤 Subscription sent:", subscribeMessage);
   }
 
   public unsubscribe(symbol: string) {
@@ -161,16 +162,12 @@ export class SignalingManager {
 
     const unsubscribeMessage = {
       method: "UNSUBSCRIBE",
-      params: [
-        `depth@${symbol}`,
-        `trade@${symbol}`,
-        `ticker@${symbol}`
-      ]
+      params: [`depth@${symbol}`, `trade@${symbol}`, `ticker@${symbol}`],
     };
 
     if (this.initialized) {
       this.ws.send(JSON.stringify(unsubscribeMessage));
-      console.log('📤 Unsubscription sent:', unsubscribeMessage);
+      console.log("📤 Unsubscription sent:", unsubscribeMessage);
     }
 
     this.subscribedSymbols.delete(symbol);
@@ -188,47 +185,47 @@ export class SignalingManager {
       quoteVolume24h: data.quoteVolume24h,
       lastQuantity: data.quantity,
       lastSide: data.side,
-      timestamp: data.timestamp
+      timestamp: data.timestamp,
     };
 
-      this.callbacks.ticker.forEach(({ callback }) => {
-        callback(ticker);
-      });
+    this.callbacks.ticker.forEach(({ callback }) => {
+      callback(ticker);
+    });
   }
 
   private handleDepthUpdate(symbol: string, data: any) {
-      const depthUpdate: DepthUpdate = {
-        symbol: symbol,
-        bids: data.bids || [],  
-        asks: data.asks || [],    
-        timestamp: data.timestamp || Date.now()  
-      };
+    const depthUpdate: DepthUpdate = {
+      symbol: symbol,
+      bids: data.bids || [],
+      asks: data.asks || [],
+      timestamp: data.timestamp || Date.now(),
+    };
 
-      this.depthCache[symbol] = depthUpdate;
+    this.depthCache[symbol] = depthUpdate;
 
-      this.callbacks.depth.forEach(({ callback }) => {
-        callback(depthUpdate);
-      });
+    this.callbacks.depth.forEach(({ callback }) => {
+      callback(depthUpdate);
+    });
   }
 
   private handleTradeUpdate(symbol: string, data: any) {
-      const trade: Trade = {
-        tradeId: data.t || 0,        
-        symbol: symbol,
-        price: data.p || '0',         
-        quantity: data.q || '0',      
-        side: data.side || 'buy',
-        timestamp: data.T || Date.now()
-      };
+    const trade: Trade = {
+      tradeId: data.t || 0,
+      symbol: symbol,
+      price: data.p || "0",
+      quantity: data.q || "0",
+      side: data.side || "buy",
+      timestamp: data.T || Date.now(),
+    };
 
-      if (!this.tradeCache[symbol]) {
-        this.tradeCache[symbol] = [];
-      }
-      this.tradeCache[symbol] = [trade, ...this.tradeCache[symbol]].slice(0, 100);
+    if (!this.tradeCache[symbol]) {
+      this.tradeCache[symbol] = [];
+    }
+    this.tradeCache[symbol] = [trade, ...this.tradeCache[symbol]].slice(0, 100);
 
-      this.callbacks.trade.forEach(({ callback }) => {
-        callback(trade);
-      });
+    this.callbacks.trade.forEach(({ callback }) => {
+      callback(trade);
+    });
   }
 
   private handleKlineUpdate(data: any) {
@@ -237,12 +234,16 @@ export class SignalingManager {
     });
   }
 
-  public registerCallback(type: MessageType, callback: (data: any) => void, id: string) {
+  public registerCallback(
+    type: MessageType,
+    callback: (data: any) => void,
+    id: string,
+  ) {
     this.callbacks[type].push({ callback, id });
   }
 
   public deRegisterCallback(type: MessageType, id: string) {
-    const index = this.callbacks[type].findIndex(cb => cb.id === id);
+    const index = this.callbacks[type].findIndex((cb) => cb.id === id);
     if (index !== -1) {
       this.callbacks[type].splice(index, 1);
     }
@@ -256,9 +257,13 @@ export class SignalingManager {
     return this.tradeCache[symbol] || [];
   }
 
+  private pendingMessages: any[] = [];
+
   public sendRaw(message: any) {
-    if (this.initialized) {
+    if (this.initialized && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+    } else {
+      this.pendingMessages.push(message);
     }
   }
 
