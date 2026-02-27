@@ -1,13 +1,15 @@
 interface MarketConfig {
   symbol: string;
   basePrice: number;
-  /** How much the fair price can drift per tick (e.g. 0.3 means ±0.3) */
+  /** Max price drift per tick */
   volatility: number;
-  /** Number of price levels on each side of the book */
+  /** 0.0 = strong downtrend, 0.5 = sideways, 1.0 = strong uptrend */
+  trend: number;
+  /** Number of price levels on each side */
   levels: number;
-  /** Spacing between each level in USD */
+  /** Spacing between levels in USD */
   spread: number;
-  /** Base quantity per order (randomized ±50%) */
+  /** Average order size */
   baseQty: number;
 }
 
@@ -18,41 +20,62 @@ interface ActiveOrder {
 }
 
 const API_URL = process.env.API_URL || "http://localhost:3001";
-const MM_USER_PREFIX = "mm-";
+const MM_USER = "mm-liquidity";
 
 export class MarketMaker {
   private config: MarketConfig;
   private fairPrice: number;
   private activeOrders: ActiveOrder[] = [];
-  private userId: string;
   private tickCount = 0;
+  private lastDrift = 0;
+  private momentum = 0;
 
   constructor(config: MarketConfig) {
     this.config = config;
     this.fairPrice = config.basePrice;
-    this.userId = `${MM_USER_PREFIX}${config.symbol.toLowerCase()}`;
     console.log(
-      `[MM:${config.symbol}] Initialized at fair price $${config.basePrice}`,
+      `[${config.symbol}] fair=$${config.basePrice} trend=${config.trend > 0.5 ? "BULL" : config.trend < 0.5 ? "BEAR" : "NEUTRAL"}`,
     );
   }
 
-  /** Random walk: drift the fair price up or down */
   private updateFairPrice() {
-    const { volatility } = this.config;
-    const drift = (Math.random() - 0.48) * volatility * 2;
-    this.fairPrice = Math.max(1, +(this.fairPrice + drift).toFixed(2));
+    const { volatility, trend } = this.config;
+
+    // Base drift: trend controls the bias direction
+    // trend=0.7 → (random - 0.3) → mostly positive
+    // trend=0.3 → (random - 0.7) → mostly negative
+    let drift = (Math.random() - (1 - trend)) * volatility * 2;
+
+    // Momentum: 30% carry from last drift (trends tend to continue)
+    drift += this.lastDrift * 0.3;
+
+    // Occasional breakout: 8% chance of a 2-3x move
+    if (Math.random() < 0.08) {
+      drift *= 2 + Math.random();
+    }
+
+    // Mean reversion: gentle pull back if price drifts too far from base (±30%)
+    const deviation =
+      (this.fairPrice - this.config.basePrice) / this.config.basePrice;
+    if (Math.abs(deviation) > 0.3) {
+      drift -= deviation * volatility * 0.5;
+    }
+
+    this.lastDrift = drift;
+    this.momentum = drift > 0 ? 1 : -1;
+    this.fairPrice = Math.max(0.01, +(this.fairPrice + drift).toFixed(2));
   }
 
   private randomQty(): number {
     const base = this.config.baseQty;
-    const variance = base * 0.5;
-    return Math.max(1, Math.round(base + (Math.random() - 0.5) * 2 * variance));
+    return Math.max(1, Math.round(base * (0.5 + Math.random())));
   }
 
   private async placeOrder(
     side: "buy" | "sell",
     price: number,
     quantity: number,
+    userId: string,
   ): Promise<string | null> {
     try {
       const res = await fetch(`${API_URL}/order`, {
@@ -63,7 +86,7 @@ export class MarketMaker {
           price: price.toFixed(2),
           quantity: quantity.toString(),
           side,
-          userId: this.userId,
+          userId,
         }),
       });
       const data = (await res.json()) as any;
@@ -78,39 +101,37 @@ export class MarketMaker {
       await fetch(`${API_URL}/order`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId,
-          market: this.config.symbol,
-        }),
+        body: JSON.stringify({ orderId, market: this.config.symbol }),
       });
     } catch {
       /* ignore */
     }
   }
 
-  /** Cancel all outstanding orders */
   private async cancelAll(): Promise<void> {
-    const cancels = this.activeOrders.map((o) => this.cancelOrder(o.orderId));
-    await Promise.allSettled(cancels);
+    await Promise.allSettled(
+      this.activeOrders.map((o) => this.cancelOrder(o.orderId)),
+    );
     this.activeOrders = [];
   }
 
-  /** Place layered bids and asks around the fair price */
   private async placeQuotes(): Promise<void> {
     const { levels, spread } = this.config;
-    const halfSpread = spread / 2;
-
-    const orders: Promise<void>[] = [];
+    const half = spread / 2;
+    const ops: Promise<void>[] = [];
 
     for (let i = 0; i < levels; i++) {
-      const bidPrice = +(this.fairPrice - halfSpread - i * spread).toFixed(2);
-      const askPrice = +(this.fairPrice + halfSpread + i * spread).toFixed(2);
-      const bidQty = this.randomQty();
-      const askQty = this.randomQty();
+      const bidPrice = +(this.fairPrice - half - i * spread).toFixed(2);
+      const askPrice = +(this.fairPrice + half + i * spread).toFixed(2);
+
+      // Outer levels get bigger size (looks realistic)
+      const sizeMultiplier = 1 + i * 0.3;
+      const bidQty = Math.round(this.randomQty() * sizeMultiplier);
+      const askQty = Math.round(this.randomQty() * sizeMultiplier);
 
       if (bidPrice > 0) {
-        orders.push(
-          this.placeOrder("buy", bidPrice, bidQty).then((id) => {
+        ops.push(
+          this.placeOrder("buy", bidPrice, bidQty, MM_USER).then((id) => {
             if (id)
               this.activeOrders.push({
                 orderId: id,
@@ -120,8 +141,8 @@ export class MarketMaker {
           }),
         );
       }
-      orders.push(
-        this.placeOrder("sell", askPrice, askQty).then((id) => {
+      ops.push(
+        this.placeOrder("sell", askPrice, askQty, MM_USER).then((id) => {
           if (id)
             this.activeOrders.push({
               orderId: id,
@@ -132,79 +153,64 @@ export class MarketMaker {
       );
     }
 
-    await Promise.allSettled(orders);
+    await Promise.allSettled(ops);
   }
 
-  /** Occasionally cross the spread to generate a real trade */
   private async generateTrade(): Promise<void> {
-    const side = Math.random() > 0.5 ? "buy" : "sell";
-    const qty = Math.max(
-      1,
-      Math.round(
-        this.config.baseQty * 0.3 + Math.random() * this.config.baseQty * 0.4,
-      ),
-    );
+    // Trade direction follows momentum + randomness
+    const buyProb =
+      this.config.trend * 0.6 +
+      (this.momentum > 0 ? 0.15 : -0.15) +
+      Math.random() * 0.25;
+    const side: "buy" | "sell" = buyProb > 0.5 ? "buy" : "sell";
+
+    const qty = this.randomQty();
     const aggressivePrice =
       side === "buy"
-        ? +(this.fairPrice + this.config.spread * 2).toFixed(2)
-        : +Math.max(1, this.fairPrice - this.config.spread * 2).toFixed(2);
+        ? +(this.fairPrice + this.config.spread * 3).toFixed(2)
+        : +Math.max(0.01, this.fairPrice - this.config.spread * 3).toFixed(2);
 
-    const traderUser = `trader-${Date.now() % 10000}`;
+    // Use rotating trader IDs so it looks like different people trading
+    const traderId = `trader-${String.fromCharCode(65 + (this.tickCount % 26))}${this.tickCount % 100}`;
 
-    try {
-      await fetch(`${API_URL}/order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          market: this.config.symbol,
-          price: aggressivePrice.toFixed(2),
-          quantity: qty.toString(),
-          side,
-          userId: traderUser,
-        }),
-      });
-    } catch {
-      /* ignore */
-    }
+    await this.placeOrder(side, aggressivePrice, qty, traderId);
   }
 
-  /** Main tick: called every interval */
   async tick(): Promise<void> {
     this.tickCount++;
     this.updateFairPrice();
 
-    // Every 3rd tick, cancel and requote
+    // Requote every 3 ticks
     if (this.tickCount % 3 === 0) {
       await this.cancelAll();
       await this.placeQuotes();
     }
 
-    // Generate a trade on most ticks to keep candles flowing
-    if (Math.random() < 0.7) {
+    // Generate 1-2 trades per tick
+    if (Math.random() < 0.75) {
+      await this.generateTrade();
+    }
+    // Sometimes a second trade in the same tick for volume
+    if (Math.random() < 0.2) {
       await this.generateTrade();
     }
 
-    if (this.tickCount % 10 === 0) {
+    if (this.tickCount % 15 === 0) {
+      const arrow = this.lastDrift > 0 ? "+" : "";
       console.log(
-        `[MM:${this.config.symbol}] tick=${this.tickCount} fair=$${this.fairPrice.toFixed(2)} orders=${this.activeOrders.length}`,
+        `[${this.config.symbol}] #${this.tickCount} fair=$${this.fairPrice.toFixed(2)} (${arrow}${this.lastDrift.toFixed(2)}) orders=${this.activeOrders.length}`,
       );
     }
   }
 
-  /** Initial seeding: place first batch of quotes */
   async seed(): Promise<void> {
-    console.log(`[MM:${this.config.symbol}] Seeding orderbook...`);
     await this.placeQuotes();
     console.log(
-      `[MM:${this.config.symbol}] Seeded ${this.activeOrders.length} orders`,
+      `[${this.config.symbol}] Seeded ${this.activeOrders.length} orders around $${this.fairPrice}`,
     );
   }
 
   getSymbol(): string {
     return this.config.symbol;
-  }
-
-  getFairPrice(): number {
-    return this.fairPrice;
   }
 }
