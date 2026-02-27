@@ -1,3 +1,5 @@
+import { logger } from "./utils/logger.js";
+
 interface MarketConfig {
   symbol: string;
   basePrice: number;
@@ -33,9 +35,12 @@ export class MarketMaker {
   constructor(config: MarketConfig) {
     this.config = config;
     this.fairPrice = config.basePrice;
-    console.log(
-      `[${config.symbol}] fair=$${config.basePrice} trend=${config.trend > 0.5 ? "BULL" : config.trend < 0.5 ? "BEAR" : "NEUTRAL"}`,
-    );
+    logger.info("mm.init", {
+      symbol: config.symbol,
+      fairPrice: config.basePrice,
+      trend:
+        config.trend > 0.5 ? "BULL" : config.trend < 0.5 ? "BEAR" : "NEUTRAL",
+    });
   }
 
   private updateFairPrice() {
@@ -196,18 +201,23 @@ export class MarketMaker {
     }
 
     if (this.tickCount % 15 === 0) {
-      const arrow = this.lastDrift > 0 ? "+" : "";
-      console.log(
-        `[${this.config.symbol}] #${this.tickCount} fair=$${this.fairPrice.toFixed(2)} (${arrow}${this.lastDrift.toFixed(2)}) orders=${this.activeOrders.length}`,
-      );
+      logger.info("mm.tick", {
+        symbol: this.config.symbol,
+        tick: this.tickCount,
+        fairPrice: this.fairPrice.toFixed(2),
+        drift: this.lastDrift.toFixed(2),
+        orders: this.activeOrders.length,
+      });
     }
   }
 
   async seed(): Promise<void> {
     await this.placeQuotes();
-    console.log(
-      `[${this.config.symbol}] Seeded ${this.activeOrders.length} orders around $${this.fairPrice}`,
-    );
+    logger.info("mm.seed", {
+      symbol: this.config.symbol,
+      orders: this.activeOrders.length,
+      fairPrice: this.fairPrice,
+    });
   }
 
   getSymbol(): string {

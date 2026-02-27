@@ -1,4 +1,5 @@
-import { MarketMaker } from "./MarketMaker";
+import { MarketMaker } from "./MarketMaker.js";
+import { logger } from "./utils/logger.js";
 
 /*
  * Market configs.
@@ -42,7 +43,7 @@ async function waitForApi(): Promise<void> {
     try {
       const res = await fetch(`${url}/depth?symbol=CR7_USD`);
       if (res.ok) {
-        console.log(" ready.");
+        logger.info("mm.api.ready", { url });
         return;
       }
     } catch {
@@ -55,18 +56,18 @@ async function waitForApi(): Promise<void> {
 }
 
 async function main() {
-  console.log("");
-  console.log("  Market Maker");
-  console.log("  ────────────────────────────────");
+  logger.info("mm.startup", { message: "Market Maker" });
+
   MARKETS.forEach((m) => {
     const dir = m.trend > 0.55 ? "BULL" : m.trend < 0.45 ? "BEAR" : "NEUTRAL";
-    console.log(
-      `  ${m.symbol.padEnd(12)} $${m.basePrice.toString().padEnd(6)} ${dir}`,
-    );
+    logger.info("mm.market.config", {
+      symbol: m.symbol,
+      basePrice: m.basePrice,
+      direction: dir,
+    });
   });
-  console.log(`  tick every ${TICK_MS / 1000}s`);
-  console.log("  ────────────────────────────────");
-  console.log("");
+
+  logger.info("mm.tick.interval", { intervalSeconds: TICK_MS / 1000 });
 
   await waitForApi();
 
@@ -76,14 +77,17 @@ async function main() {
     await mm.seed();
   }
 
-  console.log("\nRunning... (Ctrl+C to stop)\n");
+  logger.info("mm.running", { message: "Running... (Ctrl+C to stop)" });
 
   const tick = async () => {
     await Promise.allSettled(
       makers.map((mm) =>
-        mm
-          .tick()
-          .catch((err) => console.error(`[${mm.getSymbol()}] error:`, err)),
+        mm.tick().catch((err) =>
+          logger.error("mm.tick.error", {
+            symbol: mm.getSymbol(),
+            error: err,
+          }),
+        ),
       ),
     );
   };
@@ -92,6 +96,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Fatal:", err.message);
+  logger.error("mm.fatal", { error: err.message });
   process.exit(1);
 });

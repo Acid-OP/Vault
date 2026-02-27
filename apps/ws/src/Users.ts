@@ -4,8 +4,9 @@ import {
   OutgoingMessage,
   SUBSCRIBE,
   UNSUBSCRIBE,
-} from "./types/Users";
-import { Subscription } from "./subscription";
+} from "./types/Users.js";
+import { Subscription } from "./subscription.js";
+import { logger } from "./utils/logger.js";
 
 export class Users {
   private id: string;
@@ -14,56 +15,62 @@ export class Users {
   constructor(id: string, ws: WebSocket) {
     this.id = id;
     this.ws = ws;
-    console.log(`🟢 User instance created: ${id}`);
+    logger.info("user.created", { userId: id });
     this.Listners();
   }
 
   emit(message: OutgoingMessage) {
     this.ws.send(JSON.stringify(message));
-    console.log(`📨 Sent message to user ${this.id}:`, message);
+    logger.info("user.message.sent", { userId: this.id, message });
   }
 
   private Listners() {
     this.ws.on("message", async (message: string) => {
-      console.log(
-        `📥 Received message from user ${this.id}:`,
-        message.toString(),
-      );
+      logger.info("user.message.received", {
+        userId: this.id,
+        raw: message.toString(),
+      });
       try {
         const response: IncomingMessage = JSON.parse(message.toString());
 
         if (response.method === SUBSCRIBE) {
-          console.log(`🔔 Subscribing user ${this.id} to:`, response.params);
+          logger.info("user.subscribing", {
+            userId: this.id,
+            params: response.params,
+          });
           for (const sub of response.params) {
             await Subscription.getInstance().subscribe(this.id, sub);
-            console.log(`🟢 User ${this.id} subscribed to ${sub}`);
+            logger.info("user.subscribed", {
+              userId: this.id,
+              subscription: sub,
+            });
           }
         }
 
         if (response.method === UNSUBSCRIBE) {
-          console.log(
-            `🔕 Unsubscribing user ${this.id} from:`,
-            response.params,
-          );
+          logger.info("user.unsubscribing", {
+            userId: this.id,
+            params: response.params,
+          });
           for (const sub of response.params) {
             await Subscription.getInstance().unsubscribe(this.id, sub);
-            console.log(`🔴 User ${this.id} unsubscribed from ${sub}`);
+            logger.info("user.unsubscribed", {
+              userId: this.id,
+              subscription: sub,
+            });
           }
         }
       } catch (error) {
-        console.error(
-          `❌ Error processing message from user ${this.id}:`,
-          error,
-        );
+        logger.error("user.message.error", { userId: this.id, error });
       }
     });
 
     this.ws.on("error", (error) => {
-      console.error(`❌ WebSocket error for user ${this.id}:`, error);
+      logger.error("user.ws.error", { userId: this.id, error });
     });
 
     this.ws.on("close", () => {
-      console.log(`🔴 WebSocket closed for user ${this.id}`);
+      logger.info("user.ws.closed", { userId: this.id });
     });
   }
 }
