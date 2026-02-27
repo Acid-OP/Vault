@@ -54,6 +54,19 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  apps/mm:
+    dependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      dotenv:
+        specifier: ^17.2.1
+        version: 17.2.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+
   apps/web:
     dependencies:
       '@repo/ui':
