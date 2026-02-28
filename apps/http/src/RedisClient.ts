@@ -46,11 +46,29 @@ export class Manager {
 
   public async Enqueue(message: any) {
     logger.info("redis.enqueue", { message });
+    const TIMEOUT_MS = 10_000;
+
     return new Promise<ResponseFromOrderbook>((resolve, reject) => {
       const id = this.getRandomClientId();
       const dataToQueue = { clientId: id, message };
+      let settled = false;
+
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          this.pubSubClient.unsubscribe(id).catch(() => {});
+          logger.error("redis.enqueue_timeout", {
+            clientId: id,
+            timeoutMs: TIMEOUT_MS,
+          });
+          reject(new Error(`Engine did not respond within ${TIMEOUT_MS}ms`));
+        }
+      }, TIMEOUT_MS);
 
       this.pubSubClient.subscribe(id, (msg) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         logger.info("redis.message_received", { channel: id, message: msg });
         this.pubSubClient.unsubscribe(id);
         try {
@@ -65,8 +83,12 @@ export class Manager {
         .lPush("body", JSON.stringify(dataToQueue))
         .then(() => logger.info("redis.message_pushed", { data: dataToQueue }))
         .catch((err) => {
-          logger.error("redis.push_failed", { error: err });
-          reject(err);
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            logger.error("redis.push_failed", { error: err });
+            reject(err);
+          }
         });
     });
   }

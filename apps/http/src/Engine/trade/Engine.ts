@@ -222,7 +222,9 @@ export class Engine {
 
       if (!otherUserBalance) {
         logger.error("engine.other_user_balance_not_found", { otherUserId });
-        return;
+        throw new Error(
+          `Counterparty ${otherUserId} has no balance — trade cannot settle`,
+        );
       }
 
       if (
@@ -231,8 +233,13 @@ export class Engine {
         !otherUserBalance[baseAsset] ||
         !otherUserBalance[quoteAsset]
       ) {
-        logger.error("engine.missing_asset_balances");
-        return;
+        logger.error("engine.missing_asset_balances", {
+          baseAsset,
+          quoteAsset,
+          userId,
+          otherUserId,
+        });
+        throw new Error(`Missing asset balances for trade settlement`);
       }
 
       if (side === "buy") {
@@ -283,6 +290,7 @@ export class Engine {
       filled: 0,
       side,
       userId,
+      lockedQuote: side === "buy" ? price * quantity : undefined,
     };
     logger.info("engine.order_created", { orderId: order.orderId });
     const orderListed = orderbook.addOrder(order);
@@ -297,6 +305,42 @@ export class Engine {
 
     if (baseAsset && quoteAsset) {
       this.updateBalancesAfterTrade(userId, fills, side, baseAsset, quoteAsset);
+
+      // For buy orders: refund price improvement surplus
+      // We locked at order.price per unit, but fills may execute at lower prices
+      if (side === "buy" && fills.length > 0) {
+        const totalLocked = fills.reduce(
+          (sum, f) => sum + f.qty * order.price,
+          0,
+        );
+        const totalSpent = fills.reduce(
+          (sum, f) => sum + f.qty * Number(f.price),
+          0,
+        );
+        const surplus = totalLocked - totalSpent;
+        if (surplus > 0) {
+          const takerBalance = this.balances.get(userId);
+          const quoteBalance = takerBalance?.[quoteAsset];
+          if (quoteBalance) {
+            quoteBalance.available += surplus;
+            quoteBalance.locked -= surplus;
+            logger.info("engine.price_improvement_refund", {
+              surplus,
+              quoteAsset,
+            });
+          }
+        }
+      }
+    }
+
+    // Update lockedQuote on the order for accurate cancel calculation
+    if (side === "buy") {
+      const totalSpent = fills.reduce(
+        (sum, f) => sum + f.qty * Number(f.price),
+        0,
+      );
+      order.lockedQuote =
+        (order.lockedQuote || order.price * order.quantity) - totalSpent;
     }
 
     const affectedPrices = new Set(fills.map((f) => f.price));
@@ -371,7 +415,7 @@ export class Engine {
         side: side,
         takerUserId: takerUserId,
         makerUserId: fill.otherUserId,
-        makerOrderId: fill.markerOrderId,
+        makerOrderId: fill.makerOrderId,
       });
     });
 
@@ -763,7 +807,11 @@ export class Engine {
               throw new Error(`User balance for ${quoteAsset} not found`);
             }
             const price = cancelOrderbook.cancelBid(order);
-            const leftQuantity = (order.quantity - order.filled) * order.price;
+            // Use tracked lockedQuote for exact remaining locked amount
+            const leftQuantity =
+              order.lockedQuote !== undefined
+                ? order.lockedQuote
+                : (order.quantity - order.filled) * order.price;
 
             userBalance[quoteAsset].available += leftQuantity;
             userBalance[quoteAsset].locked -= leftQuantity;

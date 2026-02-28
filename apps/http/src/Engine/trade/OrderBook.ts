@@ -68,7 +68,7 @@ export class OrderBook {
           qty: filledQty,
           tradeId: this.lastTradeId++,
           otherUserId: ask.userId,
-          markerOrderId: ask.orderId,
+          makerOrderId: ask.orderId,
         });
         logger.info("orderbook.fill", {
           quantity: filledQty,
@@ -118,7 +118,7 @@ export class OrderBook {
           qty: amountRemaining,
           tradeId: this.lastTradeId++,
           otherUserId: bid.userId,
-          markerOrderId: bid.orderId,
+          makerOrderId: bid.orderId,
         });
         logger.info("orderbook.fill", {
           quantity: amountRemaining,
