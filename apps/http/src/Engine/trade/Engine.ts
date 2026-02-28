@@ -21,6 +21,8 @@ import {
   UserBalance,
   userId,
 } from "../types/trading";
+import { randomUUID } from "node:crypto";
+import { BASE_ASSETS, MARKETS } from "../config/markets";
 import { KlineManager } from "./KlineManager";
 import { OrderBook } from "./OrderBook";
 import { logger } from "../../utils/logger.js";
@@ -34,10 +36,9 @@ export class Engine {
   private latestTickers: Record<string, any> = {};
   constructor() {
     logger.info("engine.initializing");
-    this.orderBooks = [
-      new OrderBook("CR7_USD", [], [], 0, 50000),
-      new OrderBook("ELON_USD", [], [], 0, 50000),
-    ];
+    this.orderBooks = MARKETS.map(
+      (m) => new OrderBook(m.symbol, [], [], 0, m.initialPrice),
+    );
     this.initializeMarketStats();
     this.klineManager = new KlineManager();
     logger.info("engine.initialized", {
@@ -275,14 +276,10 @@ export class Engine {
       return;
     }
 
-    const orderId = () =>
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15);
-
     const order: Order = {
       price: price,
       quantity: quantity,
-      orderId: orderId(),
+      orderId: randomUUID(),
       filled: 0,
       side,
       userId,
@@ -468,11 +465,12 @@ export class Engine {
     }
     if (!this.balances.has(userId)) {
       logger.info("engine.default_balance_init", { userId });
-      const defaultBalance = {
+      const defaultBalance: UserBalance = {
         [BASE_CURRENCY]: { available: 100000, locked: 0 },
-        CR7: { available: 1000, locked: 0 },
-        ELON: { available: 1000, locked: 0 },
       };
+      BASE_ASSETS.forEach((asset) => {
+        defaultBalance[asset] = { available: 1000, locked: 0 };
+      });
       this.balances.set(userId, defaultBalance);
       logger.info("engine.default_balance_set", {
         userId,
@@ -906,5 +904,55 @@ export class Engine {
           type: (message as any).type,
         });
     }
+  }
+
+  public getDepthDirect(market: string): DepthData {
+    const orderbook = this.orderBooks.find((x) => x.getMarketPair() === market);
+    if (!orderbook) {
+      return {
+        event: "depth",
+        symbol: market,
+        bids: [],
+        asks: [],
+        timestamp: Date.now(),
+      };
+    }
+    const depth = orderbook.getDepth();
+    return {
+      event: "depth",
+      symbol: market,
+      bids: depth.aggregatedBids,
+      asks: depth.aggregatedAsks,
+      timestamp: Date.now(),
+    };
+  }
+
+  public getTickerDirect(market: string): TickerData {
+    const lastTicker = this.latestTickers?.[market];
+    if (lastTicker) return lastTicker;
+    return this.getEnhancedTicker(market, "buy");
+  }
+
+  public getKlineDirect(
+    market: string,
+    interval: string = "1m",
+    limit: number = 500,
+  ) {
+    const candles = this.klineManager.getKlineHistory(market, interval, limit);
+    return {
+      symbol: market,
+      interval,
+      candles: candles.map((k) => ({
+        timestamp: k.openTime,
+        closeTime: k.closeTime,
+        open: k.open,
+        high: k.high,
+        low: k.low,
+        close: k.close,
+        volume: k.volume,
+        trades: k.trades,
+        isClosed: k.isClosed,
+      })),
+    };
   }
 }

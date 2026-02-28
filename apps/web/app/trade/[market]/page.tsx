@@ -2,7 +2,7 @@
 import { useParams } from "next/navigation";
 import { MarketBar } from "../../../components/Ticker/MarketBar";
 import { SwapUI } from "../../../components/SwapUI/SwapUI";
-import Orderbook from "../../../components/depth/Depth.";
+import Orderbook from "../../../components/depth/Depth";
 import KLineChart from "../../../components/K-Line/chart";
 
 export default function Home() {

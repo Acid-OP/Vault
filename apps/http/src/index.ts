@@ -3,14 +3,16 @@ import dotenv from "dotenv";
 import "./Engine/main/dequeue";
 import cors from "cors";
 import { Manager } from "./RedisClient";
-import {
-  CANCEL_ORDER,
-  CREATE_ORDER,
-  GET_DEPTH,
-  GET_KLINE,
-  GET_TICKER,
-} from "./types/orders";
+import { CANCEL_ORDER, CREATE_ORDER } from "./types/orders";
 import { logger } from "./utils/logger.js";
+import {
+  cancelOrderSchema,
+  createOrderSchema,
+  klineQuerySchema,
+  symbolQuerySchema,
+} from "./validation";
+import { getEngine, stopDequeue } from "./Engine/main/dequeue";
+import { RedisManager } from "./Engine/RedisManager";
 
 dotenv.config();
 const app = express();
@@ -24,7 +26,14 @@ app.use(
 const PORT = process.env.HTTP_PORT;
 
 app.post("/order", async (req, res) => {
-  const { market, price, quantity, side, userId } = req.body;
+  const parsed = createOrderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { market, price, quantity, side, userId } = parsed.data;
   logger.info("http.post_order", { market, price, quantity, side, userId });
   try {
     const data = {
@@ -42,12 +51,19 @@ app.post("/order", async (req, res) => {
     res.json(response.payload);
   } catch (err) {
     logger.error("order.queue_failed", { error: err });
-    res.status(500).send({ error: "Failed to queue order" });
+    res.status(500).json({ error: "Failed to queue order" });
   }
 });
 
 app.delete("/order", async (req, res) => {
-  const { orderId, market } = req.body;
+  const parsed = cancelOrderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { orderId, market } = parsed.data;
   logger.info("http.delete_order", { orderId, market });
   try {
     const response = await Manager.getInstance().Enqueue({
@@ -61,62 +77,109 @@ app.delete("/order", async (req, res) => {
     res.json(response.payload);
   } catch (e) {
     logger.error("order.cancel_failed", { error: e });
+    res.status(500).json({ error: "Failed to cancel order" });
   }
 });
 
 app.get("/depth", async (req, res) => {
-  const { symbol } = req.query;
+  const parsed = symbolQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { symbol } = parsed.data;
   logger.info("http.get_depth", { symbol });
   try {
-    const response = await Manager.getInstance().Enqueue({
-      type: GET_DEPTH,
-      data: {
-        market: symbol as string,
-      },
-    });
-    logger.info("depth.response", { payload: response.payload });
-    res.json(response.payload);
+    const engine = getEngine();
+    if (!engine) {
+      res.status(503).json({ error: "Engine not ready" });
+      return;
+    }
+    const depth = engine.getDepthDirect(symbol);
+    res.json(depth);
   } catch (e) {
     logger.error("depth.failed", { error: e });
+    res.status(500).json({ error: "Failed to get depth" });
   }
 });
 
 app.get("/tickers", async (req, res) => {
-  const { symbol } = req.query;
+  const parsed = symbolQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { symbol } = parsed.data;
   logger.info("http.get_tickers", { symbol });
   try {
-    const response = await Manager.getInstance().Enqueue({
-      type: GET_TICKER,
-      data: {
-        market: symbol as string,
-      },
-    });
-    logger.info("ticker.response", { payload: response.payload });
-    res.json(response.payload);
+    const engine = getEngine();
+    if (!engine) {
+      res.status(503).json({ error: "Engine not ready" });
+      return;
+    }
+    const ticker = engine.getTickerDirect(symbol);
+    res.json(ticker);
   } catch (e) {
     logger.error("ticker.failed", { error: e });
+    res.status(500).json({ error: "Failed to get ticker" });
   }
 });
 
 app.get("/klines", async (req, res) => {
-  const { symbol, interval, limit } = req.query;
+  const parsed = klineQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { symbol, interval, limit } = parsed.data;
   logger.info("http.get_klines", { symbol, interval, limit });
   try {
-    const response = await Manager.getInstance().Enqueue({
-      type: GET_KLINE,
-      data: {
-        market: symbol as string,
-        interval: (interval as string) || "1m",
-        limit: limit ? parseInt(limit as string) : 500,
-      },
-    });
-    res.json(response.payload);
+    const engine = getEngine();
+    if (!engine) {
+      res.status(503).json({ error: "Engine not ready" });
+      return;
+    }
+    const klines = engine.getKlineDirect(symbol, interval, limit);
+    res.json(klines);
   } catch (e) {
     logger.error("klines.failed", { error: e });
-    res.status(500).send({ error: "Failed to get klines" });
+    res.status(500).json({ error: "Failed to get klines" });
   }
 });
 
-app.listen(PORT, () => {
-  logger.info("http.server_started", { port: PORT });
+let server: ReturnType<typeof app.listen>;
+
+async function start() {
+  await Manager.waitForReady();
+  logger.info("redis.ready");
+
+  server = app.listen(PORT, () => {
+    logger.info("http.server_started", { port: PORT });
+  });
+}
+
+async function shutdown(signal: string) {
+  logger.info("http.shutdown_started", { signal });
+
+  server?.close();
+  stopDequeue();
+  await Manager.getInstance().cleanup();
+  await RedisManager.getInstance().cleanup();
+
+  logger.info("http.shutdown_complete");
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+start().catch((err) => {
+  logger.error("http.startup_failed", { error: err });
+  process.exit(1);
 });

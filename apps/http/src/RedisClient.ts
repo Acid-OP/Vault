@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createClient, RedisClientType } from "redis";
 import { ResponseFromOrderbook } from "./types/responses";
 import { logger } from "./utils/logger.js";
@@ -7,24 +8,22 @@ export class Manager {
   private pubSubClient: RedisClientType;
   private static instance: Manager;
 
+  private ready: Promise<void>;
+
   private constructor() {
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
     this.client = createClient({ url: redisUrl });
-    this.client
-      .connect()
-      .then(() => logger.info("redis.client_connected"))
-      .catch((err) =>
-        logger.error("redis.client_connection_failed", { error: err }),
-      );
-
     this.pubSubClient = createClient({ url: redisUrl });
-    this.pubSubClient
-      .connect()
-      .then(() => logger.info("redis.pubsub_connected"))
-      .catch((err) =>
-        logger.error("redis.pubsub_connection_failed", { error: err }),
-      );
+
+    this.ready = this.init();
+  }
+
+  private async init() {
+    await this.client.connect();
+    logger.info("redis.client_connected");
+    await this.pubSubClient.connect();
+    logger.info("redis.pubsub_connected");
   }
 
   static getInstance() {
@@ -34,10 +33,13 @@ export class Manager {
     return this.instance;
   }
 
+  static async waitForReady() {
+    const instance = this.getInstance();
+    await instance.ready;
+  }
+
   getRandomClientId() {
-    const id =
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15);
+    const id = randomUUID();
     logger.info("redis.client_id_generated", { clientId: id });
     return id;
   }

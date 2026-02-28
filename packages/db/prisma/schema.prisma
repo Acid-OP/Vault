@@ -23,7 +23,7 @@ model Wallet {
   id        String   @id @default(uuid())
   userId    String
   asset     String
-  balance   Float    @default(0)  
+  balance   Decimal  @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -35,8 +35,8 @@ model Order {
   userId    String
   side      String
   type      String
-  price     Float?  
-  quantity  Float
+  price     Decimal?
+  quantity  Decimal
   status    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,10 +48,10 @@ model Order {
 model Trade {
   id        String   @id @default(uuid())
   orderId   String
-  price     Float    
-  quantity  Float
+  price     Decimal
+  quantity  Decimal
   side      String
-  fee       Float?
+  fee       Decimal?
   createdAt DateTime @default(now())
 
   order     Order    @relation(fields: [orderId], references: [id])

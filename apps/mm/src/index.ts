@@ -41,7 +41,9 @@ async function waitForApi(): Promise<void> {
   process.stdout.write(`Waiting for API at ${url}`);
   for (let i = 0; i < 60; i++) {
     try {
-      const res = await fetch(`${url}/depth?symbol=CR7_USD`);
+      const res = await fetch(
+        `${url}/depth?symbol=${MARKETS[0]?.symbol || "CR7_USD"}`,
+      );
       if (res.ok) {
         logger.info("mm.api.ready", { url });
         return;

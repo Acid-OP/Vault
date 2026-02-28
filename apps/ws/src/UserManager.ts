@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { WebSocket } from "ws";
 import { Users } from "./Users.js";
 import { Subscription } from "./subscription.js";
@@ -38,9 +39,6 @@ export class UserManager {
   }
 
   private getRandomId() {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
+    return randomUUID();
   }
 }
