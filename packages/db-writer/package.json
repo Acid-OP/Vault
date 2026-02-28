@@ -12,6 +12,9 @@
     "@repo/logger": "workspace:*",
     "redis": "^5.8.2"
   },
+  "scripts": {
+    "test": "vitest run"
+  },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.15.3"

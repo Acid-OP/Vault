@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "pnpm run build && pnpm run start",
     "build": "tsc -b",
-    "start": "node ./dist/index.js"
+    "start": "node ./dist/index.js",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@repo/db": "workspace:*"
