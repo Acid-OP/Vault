@@ -31,6 +31,31 @@ app.use(
 );
 const PORT = process.env.HTTP_PORT;
 
+// Simple in-memory rate limiter for order routes (per userId)
+const ORDER_RATE_LIMIT = 10; // max requests per window
+const ORDER_RATE_WINDOW_MS = 1_000; // 1 second window
+const orderRateMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkOrderRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = orderRateMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    orderRateMap.set(userId, { count: 1, resetAt: now + ORDER_RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= ORDER_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
+// Clean up stale entries every 60s
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of orderRateMap) {
+    if (now > entry.resetAt) orderRateMap.delete(key);
+  }
+}, 60_000);
+
 app.post("/order", async (req, res) => {
   const parsed = createOrderSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -40,6 +65,10 @@ app.post("/order", async (req, res) => {
     return;
   }
   const { market, price, quantity, side, userId } = parsed.data;
+  if (!checkOrderRateLimit(userId)) {
+    res.status(429).json({ error: "Rate limit exceeded" });
+    return;
+  }
   logger.info("http.post_order", { market, price, quantity, side, userId });
   try {
     const data = {
@@ -70,6 +99,10 @@ app.delete("/order", async (req, res) => {
     return;
   }
   const { orderId, market } = parsed.data;
+  if (!checkOrderRateLimit(orderId)) {
+    res.status(429).json({ error: "Rate limit exceeded" });
+    return;
+  }
   logger.info("http.delete_order", { orderId, market });
   try {
     const response = await Manager.getInstance().Enqueue({

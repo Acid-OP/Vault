@@ -19,13 +19,24 @@ export function stopDequeue() {
   running = false;
 }
 
+const lastDepthHash = new Map<string, string>();
+
+function depthHash(bids: [string, string][], asks: [string, string][]): string {
+  return JSON.stringify(bids) + "|" + JSON.stringify(asks);
+}
+
 export function startDepthSnapshotTimer() {
   if (!engineInstance) return;
   const engine = engineInstance;
 
   depthTimer = setInterval(() => {
+    let pushed = 0;
     MARKETS.forEach((m) => {
       const depth = engine.getDepthDirect(m.symbol);
+      const hash = depthHash(depth.bids, depth.asks);
+      if (lastDepthHash.get(m.symbol) === hash) return;
+      lastDepthHash.set(m.symbol, hash);
+      pushed++;
       RedisManager.getInstance().pushDbEvent({
         type: "DEPTH_SNAPSHOT",
         symbol: m.symbol,
@@ -34,9 +45,9 @@ export function startDepthSnapshotTimer() {
         timestamp: depth.timestamp,
       });
     });
-    logger.info("dequeue.depth_snapshots_pushed", {
-      markets: MARKETS.map((m) => m.symbol),
-    });
+    if (pushed > 0) {
+      logger.info("dequeue.depth_snapshots_pushed", { count: pushed });
+    }
   }, 30_000);
 }
 
