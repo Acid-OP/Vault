@@ -29,6 +29,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/db-writer':
+        specifier: workspace:*
+        version: link:../../packages/db-writer
       '@repo/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -210,6 +213,25 @@ importers:
       prisma:
         specifier: 6.13.0
         version: 6.13.0(typescript@5.9.2)
+
+  packages/db-writer:
+    dependencies:
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
+      '@repo/logger':
+        specifier: workspace:*
+        version: link:../logger
+      redis:
+        specifier: ^5.8.2
+        version: 5.8.2
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
 
   packages/eslint-config:
     devDependencies:

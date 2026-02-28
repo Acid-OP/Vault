@@ -10,7 +10,7 @@ import {
   DepthSnapshotEvent,
 } from "./types.js";
 
-const logger = createLogger("db-writer");
+const logger = createLogger({ service: "db-writer" });
 
 const FLUSH_INTERVAL_MS = 2000;
 const MAX_BATCH_SIZE = 100;
@@ -134,6 +134,7 @@ export class DbBatcher {
           userId: e.userId,
           market: e.market,
           side: e.side,
+          type: "limit",
           price: e.price,
           quantity: e.quantity,
           filled: e.filled,
@@ -201,7 +202,7 @@ export class DbBatcher {
 
     try {
       await prismaClient.$transaction(
-        [...deduped.values()].map((e) =>
+        Array.from(deduped.values()).map((e) =>
           prismaClient.ohlcvCandle.upsert({
             where: {
               symbol_interval_openTime: {
