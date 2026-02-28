@@ -11,8 +11,14 @@ import {
   klineQuerySchema,
   symbolQuerySchema,
 } from "./validation";
-import { getEngine, stopDequeue } from "./Engine/main/dequeue";
+import {
+  getEngine,
+  stopDequeue,
+  startDepthSnapshotTimer,
+  stopDepthSnapshotTimer,
+} from "./Engine/main/dequeue";
 import { RedisManager } from "./Engine/RedisManager";
+import { DbBatcher } from "@repo/db-writer";
 
 dotenv.config();
 const app = express();
@@ -154,10 +160,17 @@ app.get("/klines", async (req, res) => {
 });
 
 let server: ReturnType<typeof app.listen>;
+let batcher: DbBatcher | null = null;
 
 async function start() {
   await Manager.waitForReady();
   logger.info("redis.ready");
+
+  batcher = new DbBatcher();
+  await batcher.start();
+  logger.info("db_batcher.started");
+
+  startDepthSnapshotTimer();
 
   server = app.listen(PORT, () => {
     logger.info("http.server_started", { port: PORT });
@@ -168,7 +181,13 @@ async function shutdown(signal: string) {
   logger.info("http.shutdown_started", { signal });
 
   server?.close();
+  stopDepthSnapshotTimer();
   stopDequeue();
+
+  if (batcher) {
+    await batcher.stop();
+  }
+
   await Manager.getInstance().cleanup();
   await RedisManager.getInstance().cleanup();
 

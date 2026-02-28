@@ -308,13 +308,38 @@ export class Engine {
       this.UpdatedDepth(order.price.toString(), market);
     }
     if (fills.length > 0) {
-      this.publishTrades(fills, market, side);
+      this.publishTrades(fills, market, side, order.orderId, userId);
     }
+
+    // Persist order
+    const status =
+      executedQty >= order.quantity
+        ? "filled"
+        : executedQty > 0
+          ? "partially_filled"
+          : "open";
+    RedisManager.getInstance().pushDbEvent({
+      type: "ORDER_NEW",
+      orderId: order.orderId,
+      userId,
+      market,
+      side,
+      price,
+      quantity,
+      filled: executedQty,
+      status,
+    });
 
     return { executedQty, fills, orderId: order.orderId };
   }
 
-  private publishTrades(fills: Fill[], market: string, side: "buy" | "sell") {
+  private publishTrades(
+    fills: Fill[],
+    market: string,
+    side: "buy" | "sell",
+    takerOrderId: string,
+    takerUserId: string,
+  ) {
     logger.info("engine.publishing_trades", {
       market,
       fillCount: fills.length,
@@ -333,6 +358,20 @@ export class Engine {
       RedisManager.getInstance().Publish(`trade@${market}`, {
         stream: `trade@${market}`,
         data: tradeData,
+      });
+
+      // Persist trade
+      RedisManager.getInstance().pushDbEvent({
+        type: "TRADE",
+        tradeId: fill.tradeId,
+        orderId: takerOrderId,
+        symbol: market,
+        price: fill.price,
+        quantity: fill.qty,
+        side: side,
+        takerUserId: takerUserId,
+        makerUserId: fill.otherUserId,
+        makerOrderId: fill.markerOrderId,
       });
     });
 
@@ -373,6 +412,21 @@ export class Engine {
           RedisManager.getInstance().Publish(`kline@${market}@${interval}`, {
             stream: `kline@${market}@${interval}`,
             data: klineData,
+          });
+
+          // Persist kline
+          RedisManager.getInstance().pushDbEvent({
+            type: "KLINE_UPDATE",
+            symbol: market,
+            interval: interval,
+            openTime: kline.openTime,
+            closeTime: kline.closeTime,
+            open: kline.open,
+            high: kline.high,
+            low: kline.low,
+            close: kline.close,
+            volume: kline.volume,
+            trades: kline.trades,
           });
 
           if (newCandleInitiated) {
@@ -743,6 +797,13 @@ export class Engine {
             }
           }
           logger.info("engine.order_cancelled", { orderId });
+
+          // Persist cancel
+          RedisManager.getInstance().pushDbEvent({
+            type: "ORDER_CANCEL",
+            orderId,
+          });
+
           RedisManager.getInstance().ResponseToHTTP(clientId, {
             type: "ORDER_CANCELLED",
             payload: {

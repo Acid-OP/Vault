@@ -1,5 +1,7 @@
 import { createClient } from "redis";
 import { Engine } from "../trade/Engine";
+import { RedisManager } from "../RedisManager";
+import { MARKETS } from "../config/markets";
 import { logger } from "../../utils/logger.js";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -7,6 +9,7 @@ const client = createClient({ url: redisUrl });
 
 let engineInstance: Engine | null = null;
 let running = true;
+let depthTimer: ReturnType<typeof setInterval> | null = null;
 
 export function getEngine(): Engine | null {
   return engineInstance;
@@ -14,6 +17,34 @@ export function getEngine(): Engine | null {
 
 export function stopDequeue() {
   running = false;
+}
+
+export function startDepthSnapshotTimer() {
+  if (!engineInstance) return;
+  const engine = engineInstance;
+
+  depthTimer = setInterval(() => {
+    MARKETS.forEach((m) => {
+      const depth = engine.getDepthDirect(m.symbol);
+      RedisManager.getInstance().pushDbEvent({
+        type: "DEPTH_SNAPSHOT",
+        symbol: m.symbol,
+        bids: depth.bids,
+        asks: depth.asks,
+        timestamp: depth.timestamp,
+      });
+    });
+    logger.info("dequeue.depth_snapshots_pushed", {
+      markets: MARKETS.map((m) => m.symbol),
+    });
+  }, 30_000);
+}
+
+export function stopDepthSnapshotTimer() {
+  if (depthTimer) {
+    clearInterval(depthTimer);
+    depthTimer = null;
+  }
 }
 
 async function main() {

@@ -47,6 +47,12 @@ export class RedisManager {
     }
   }
 
+  public pushDbEvent(event: any): void {
+    this.client.lPush("db_events", JSON.stringify(event)).catch((err) => {
+      logger.error("redis_manager.db_event_push_failed", { error: err });
+    });
+  }
+
   public async cleanup() {
     await this.client.quit();
   }
