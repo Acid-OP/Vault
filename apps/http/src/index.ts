@@ -6,6 +6,7 @@ import { Manager } from "./RedisClient";
 import { CANCEL_ORDER, CREATE_ORDER } from "./types/orders";
 import { logger } from "./utils/logger.js";
 import {
+  balanceQuerySchema,
   cancelOrderSchema,
   createOrderSchema,
   klineQuerySchema,
@@ -189,6 +190,29 @@ app.get("/klines", async (req, res) => {
   } catch (e) {
     logger.error("klines.failed", { error: e });
     res.status(500).json({ error: "Failed to get klines" });
+  }
+});
+
+app.get("/balance", async (req, res) => {
+  const parsed = balanceQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { userId } = parsed.data;
+  try {
+    const engine = getEngine();
+    if (!engine) {
+      res.status(503).json({ error: "Engine not ready" });
+      return;
+    }
+    const balance = engine.getBalanceDirect(userId);
+    res.json({ userId, balances: balance });
+  } catch (e) {
+    logger.error("balance.failed", { error: e });
+    res.status(500).json({ error: "Failed to get balance" });
   }
 });
 

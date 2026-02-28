@@ -33,11 +33,33 @@ export class OrderBook {
   getMarketPair() {
     return `${this.baseAsset}_${this.quoteAsset}`;
   }
-  private sortAsks() {
-    this.asks.sort((a, b) => a.price - b.price);
+  // Binary search insert: O(log n) find + O(n) splice, vs O(n log n) full sort
+  private insertSorted(
+    arr: Order[],
+    order: Order,
+    comparator: (a: Order, b: Order) => number,
+  ) {
+    let low = 0;
+    let high = arr.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (comparator(arr[mid]!, order) < 0) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    arr.splice(low, 0, order);
   }
-  private sortBids() {
-    this.bids.sort((a, b) => b.price - a.price);
+
+  private insertBid(order: Order) {
+    // Bids: highest price first (descending)
+    this.insertSorted(this.bids, order, (a, b) => b.price - a.price);
+  }
+
+  private insertAsk(order: Order) {
+    // Asks: lowest price first (ascending)
+    this.insertSorted(this.asks, order, (a, b) => a.price - b.price);
   }
   private matchBid(order: Order) {
     logger.info("orderbook.matching_bid", {
@@ -45,7 +67,7 @@ export class OrderBook {
       price: order.price,
       quantity: order.quantity,
     });
-    this.sortAsks();
+    // Asks are already sorted ascending (lowest first)
     const fills: Fill[] = [];
     let executedQty = 0;
 
@@ -94,7 +116,7 @@ export class OrderBook {
       price: order.price,
       quantity: order.quantity,
     });
-    this.sortBids();
+    // Bids are already sorted descending (highest first)
     const fills: Fill[] = [];
     let executedQty = 0;
 
@@ -239,10 +261,9 @@ export class OrderBook {
 
       const remainingQty = order.quantity - executedQty;
       if (remainingQty > 0) {
-        this.bids.push(order);
+        this.insertBid(order);
         logger.info("orderbook.buy_order_added", { remainingQty });
       }
-      this.sortBids();
       return {
         executedQty,
         fills,
@@ -259,10 +280,9 @@ export class OrderBook {
       }
       const remainingQty = order.quantity - executedQty;
       if (remainingQty > 0) {
-        this.asks.push(order);
+        this.insertAsk(order);
         logger.info("orderbook.sell_order_added", { remainingQty });
       }
-      this.sortAsks();
       return {
         executedQty,
         fills,

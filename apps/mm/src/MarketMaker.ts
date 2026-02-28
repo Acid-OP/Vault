@@ -95,21 +95,48 @@ export class MarketMaker {
         }),
       });
       const data = (await res.json()) as any;
+      if (!res.ok) {
+        logger.error("mm.place_order_rejected", {
+          symbol: this.config.symbol,
+          side,
+          price,
+          status: res.status,
+          response: data,
+        });
+        return null;
+      }
       return data?.orderId || null;
-    } catch {
+    } catch (err) {
+      logger.error("mm.place_order_failed", {
+        symbol: this.config.symbol,
+        side,
+        price,
+        error: err instanceof Error ? err.message : err,
+      });
       return null;
     }
   }
 
   private async cancelOrder(orderId: string): Promise<void> {
     try {
-      await fetch(`${API_URL}/order`, {
+      const res = await fetch(`${API_URL}/order`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId, market: this.config.symbol }),
       });
-    } catch {
-      /* ignore */
+      if (!res.ok) {
+        logger.error("mm.cancel_order_rejected", {
+          symbol: this.config.symbol,
+          orderId,
+          status: res.status,
+        });
+      }
+    } catch (err) {
+      logger.error("mm.cancel_order_failed", {
+        symbol: this.config.symbol,
+        orderId,
+        error: err instanceof Error ? err.message : err,
+      });
     }
   }
 

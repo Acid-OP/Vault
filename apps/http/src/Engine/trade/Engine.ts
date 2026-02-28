@@ -1064,4 +1064,9 @@ export class Engine {
       })),
     };
   }
+
+  public getBalanceDirect(userId: string): UserBalance | null {
+    this.defaultBalances(userId);
+    return this.balances.get(userId) || null;
+  }
 }

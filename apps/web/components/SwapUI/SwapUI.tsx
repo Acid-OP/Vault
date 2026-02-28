@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import TradeToggle from "./TradeToggle";
 import OrderTabs from "./OrderTypeTabs";
 import TradeForm from "./TradeForm";
+import { getBalance } from "../../utils/httpClient";
+
+// Temp userId until auth is implemented
+const USER_ID = "default-user";
 
 export function SwapUI({ market }: { market: string }) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
@@ -12,8 +16,27 @@ export function SwapUI({ market }: { market: string }) {
   const [quantity, setQuantity] = useState("0");
   const [orderValue, setOrderValue] = useState("0");
   const [percentage, setPercentage] = useState(0);
+  const [balanceStr, setBalanceStr] = useState("-");
 
   const [base, quote] = market.split("_");
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const balances = await getBalance(USER_ID);
+        const asset = side === "buy" ? quote : base;
+        const bal = asset ? balances[asset] : null;
+        if (bal) {
+          setBalanceStr(`${bal.available.toFixed(2)} ${asset}`);
+        }
+      } catch {
+        setBalanceStr("-");
+      }
+    };
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 5000);
+    return () => clearInterval(interval);
+  }, [side, base, quote]);
 
   const handlePercentageChange = (value: number) => {
     setPercentage(value);
@@ -28,7 +51,7 @@ export function SwapUI({ market }: { market: string }) {
       />
       <OrderTabs
         initialType="market"
-        balance="-"
+        balance={balanceStr}
         onOrderTypeChange={(t) => setOrderType(t)}
       />
       <TradeForm

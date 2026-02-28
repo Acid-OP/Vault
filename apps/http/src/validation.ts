@@ -25,6 +25,10 @@ export const symbolQuerySchema = z.object({
   symbol: z.string().regex(/^[A-Z0-9]+_[A-Z]+$/),
 });
 
+export const balanceQuerySchema = z.object({
+  userId: z.string().min(1),
+});
+
 export const klineQuerySchema = z.object({
   symbol: z.string().regex(/^[A-Z0-9]+_[A-Z]+$/),
   interval: z
