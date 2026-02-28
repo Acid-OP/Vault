@@ -16,7 +16,6 @@ model User {
   updatedAt DateTime @updatedAt
 
   wallets   Wallet[]
-  orders    Order[]
 }
 
 model Wallet {
@@ -31,30 +30,51 @@ model Wallet {
 }
 
 model Order {
-  id        String   @id @default(uuid())
+  id        String   @id
   userId    String
+  market    String
   side      String
-  type      String
+  type      String   @default("limit")
   price     Decimal?
   quantity  Decimal
+  filled    Decimal  @default(0)
   status    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id])
-  trades    Trade[]
+  @@index([market, createdAt])
+  @@index([userId])
 }
 
 model Trade {
-  id        String   @id @default(uuid())
-  orderId   String
-  price     Decimal
-  quantity  Decimal
-  side      String
-  fee       Decimal?
+  id            String   @id @default(uuid())
+  tradeId       Int
+  orderId       String
+  symbol        String
+  price         Decimal
+  quantity      Decimal
+  side          String
+  takerUserId   String
+  makerUserId   String
+  makerOrderId  String
+  fee           Decimal?
+  createdAt     DateTime @default(now())
+
+  @@index([symbol, createdAt])
+  @@index([takerUserId])
+  @@index([makerUserId])
+}
+
+model DepthSnapshot {
+  id        BigInt   @id @default(autoincrement())
+  symbol    String
+  bids      Json
+  asks      Json
+  timestamp BigInt
   createdAt DateTime @default(now())
 
-  order     Order    @relation(fields: [orderId], references: [id])
+  @@index([symbol, timestamp])
+  @@map("depth_snapshots")
 }
 
 model OhlcvCandle {
