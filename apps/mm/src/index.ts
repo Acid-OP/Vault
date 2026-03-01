@@ -34,7 +34,7 @@ const MARKETS = [
   },
 ];
 
-const TICK_MS = 4000;
+const TICK_MS = Number(process.env.MM_TICK_MS) || 8000;
 
 async function waitForApi(): Promise<void> {
   const url = process.env.API_URL || "http://localhost:3001";
@@ -82,16 +82,16 @@ async function main() {
   logger.info("mm.running", { message: "Running... (Ctrl+C to stop)" });
 
   const tick = async () => {
-    await Promise.allSettled(
-      makers.map((mm) =>
-        mm.tick().catch((err) =>
-          logger.error("mm.tick.error", {
-            symbol: mm.getSymbol(),
-            error: err,
-          }),
-        ),
-      ),
-    );
+    for (const mm of makers) {
+      try {
+        await mm.tick();
+      } catch (err) {
+        logger.error("mm.tick.error", {
+          symbol: mm.getSymbol(),
+          error: err,
+        });
+      }
+    }
   };
 
   setInterval(tick, TICK_MS);

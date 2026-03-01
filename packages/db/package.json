@@ -6,6 +6,7 @@
     "./client": "./src/index.ts"
   },
   "scripts": {
+    "build": "prisma generate",
     "test": "echo \"No tests yet\"",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

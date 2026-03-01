@@ -23,6 +23,9 @@ interface ActiveOrder {
 
 const API_URL = process.env.API_URL || "http://localhost:3001";
 const MM_USER = "mm-liquidity";
+const ORDER_DELAY_MS = Number(process.env.MM_ORDER_DELAY_MS) || 150;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class MarketMaker {
   private config: MarketConfig;
@@ -141,51 +144,37 @@ export class MarketMaker {
   }
 
   private async cancelAll(): Promise<void> {
-    await Promise.allSettled(
-      this.activeOrders.map((o) => this.cancelOrder(o.orderId)),
-    );
+    for (const o of this.activeOrders) {
+      await this.cancelOrder(o.orderId);
+      await sleep(ORDER_DELAY_MS);
+    }
     this.activeOrders = [];
   }
 
   private async placeQuotes(): Promise<void> {
     const { levels, spread } = this.config;
     const half = spread / 2;
-    const ops: Promise<void>[] = [];
 
     for (let i = 0; i < levels; i++) {
       const bidPrice = +(this.fairPrice - half - i * spread).toFixed(2);
       const askPrice = +(this.fairPrice + half + i * spread).toFixed(2);
 
-      // Outer levels get bigger size (looks realistic)
       const sizeMultiplier = 1 + i * 0.3;
       const bidQty = Math.round(this.randomQty() * sizeMultiplier);
       const askQty = Math.round(this.randomQty() * sizeMultiplier);
 
       if (bidPrice > 0) {
-        ops.push(
-          this.placeOrder("buy", bidPrice, bidQty, MM_USER).then((id) => {
-            if (id)
-              this.activeOrders.push({
-                orderId: id,
-                side: "buy",
-                price: bidPrice,
-              });
-          }),
-        );
+        const id = await this.placeOrder("buy", bidPrice, bidQty, MM_USER);
+        if (id)
+          this.activeOrders.push({ orderId: id, side: "buy", price: bidPrice });
+        await sleep(ORDER_DELAY_MS);
       }
-      ops.push(
-        this.placeOrder("sell", askPrice, askQty, MM_USER).then((id) => {
-          if (id)
-            this.activeOrders.push({
-              orderId: id,
-              side: "sell",
-              price: askPrice,
-            });
-        }),
-      );
-    }
 
-    await Promise.allSettled(ops);
+      const id = await this.placeOrder("sell", askPrice, askQty, MM_USER);
+      if (id)
+        this.activeOrders.push({ orderId: id, side: "sell", price: askPrice });
+      await sleep(ORDER_DELAY_MS);
+    }
   }
 
   private async generateTrade(): Promise<void> {
