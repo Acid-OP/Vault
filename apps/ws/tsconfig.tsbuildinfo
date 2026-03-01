@@ -1,1 +1,1 @@
-{"root":["./src/usermanager.ts","./src/users.ts","./src/index.ts","./src/subscription.ts","./src/types/users.ts","./src/utils/logger.ts"],"version":"5.9.2"}
+{"root":["./vitest.config.d.ts","./src/usermanager.ts","./src/users.ts","./src/index.ts","./src/subscription.ts","./src/__tests__/users.test.ts","./src/types/users.ts","./src/utils/logger.ts"],"version":"5.9.2"}
