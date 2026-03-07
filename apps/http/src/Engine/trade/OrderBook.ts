@@ -148,6 +148,11 @@ export class OrderBook {
         executedQty += amountRemaining;
         bid.filled += amountRemaining;
 
+        // Update lockedQuote for maker buy orders so cancel unlocks correctly
+        if (bid.lockedQuote !== undefined) {
+          bid.lockedQuote -= amountRemaining * bid.price;
+        }
+
         fills.push({
           price: bid.price.toString(),
           qty: amountRemaining,

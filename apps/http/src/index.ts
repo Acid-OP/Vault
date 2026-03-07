@@ -37,8 +37,12 @@ const PORT = process.env.HTTP_PORT;
 const ORDER_RATE_LIMIT = 10; // max requests per window
 const ORDER_RATE_WINDOW_MS = 1_000; // 1 second window
 const orderRateMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_EXEMPT = new Set(
+  (process.env.RATE_LIMIT_EXEMPT || "mm-liquidity").split(","),
+);
 
 function checkOrderRateLimit(userId: string): boolean {
+  if (RATE_LIMIT_EXEMPT.has(userId)) return true;
   const now = Date.now();
   const entry = orderRateMap.get(userId);
   if (!entry || now > entry.resetAt) {
