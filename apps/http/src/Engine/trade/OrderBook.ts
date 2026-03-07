@@ -65,6 +65,14 @@ export class OrderBook {
     this.insertSorted(this.asks, order, (a, b) => a.price - b.price);
     this.orderIndex.set(order.orderId, { side: "sell", order });
   }
+  restoreBid(order: Order) {
+    this.insertBid(order);
+  }
+
+  restoreAsk(order: Order) {
+    this.insertAsk(order);
+  }
+
   private matchBid(order: Order) {
     logger.info("orderbook.matching_bid", {
       orderId: order.orderId,

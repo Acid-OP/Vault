@@ -67,7 +67,7 @@ export async function startDequeue() {
       logger.error("dequeue.redis_connection_failed", { error: err }),
     );
 
-  engineInstance = new Engine();
+  engineInstance = await Engine.create();
   logger.info("dequeue.engine_initialized");
 
   (async () => {

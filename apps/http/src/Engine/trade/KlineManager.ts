@@ -121,6 +121,28 @@ export class KlineManager {
     return limit ? all.slice(-limit) : all;
   }
 
+  public restoreHistory(
+    market: string,
+    interval: string,
+    candles: Kline[],
+  ): void {
+    if (candles.length === 0) return;
+    const key = this.getKey(market, interval);
+
+    const history = candles.map((c) => ({ ...c, isClosed: true }));
+
+    // If the last candle falls in the current time window, treat it as active
+    const last = history[history.length - 1]!;
+    const now = Date.now();
+    const windowStart = this.getWindowStart(now, interval);
+    if (last.openTime === windowStart) {
+      last.isClosed = false;
+      this.currentKlines.set(key, history.pop()!);
+    }
+
+    this.klineHistory.set(key, history);
+  }
+
   public getAllCurrentKlines(): Kline[] {
     return Array.from(this.currentKlines.values());
   }

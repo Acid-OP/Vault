@@ -78,7 +78,6 @@ model DepthSnapshot {
 }
 
 model OhlcvCandle {
-  id        BigInt   @id @default(autoincrement())
   symbol    String
   interval  String
   openTime  BigInt
@@ -90,7 +89,7 @@ model OhlcvCandle {
   volume    Decimal
   trades    Int
   createdAt DateTime @default(now())
-  
-  @@unique([symbol, interval, openTime])
+
+  @@id([symbol, interval, openTime])
   @@map("ohlcv_candles")
 }

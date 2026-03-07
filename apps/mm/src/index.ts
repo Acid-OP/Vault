@@ -81,20 +81,42 @@ async function main() {
 
   logger.info("mm.running", { message: "Running... (Ctrl+C to stop)" });
 
-  const tick = async () => {
+  const loop = async () => {
+    while (true) {
+      for (const mm of makers) {
+        try {
+          await mm.tick();
+        } catch (err) {
+          logger.error("mm.tick.error", {
+            symbol: mm.getSymbol(),
+            error: err,
+          });
+        }
+      }
+      await new Promise((r) => setTimeout(r, TICK_MS));
+    }
+  };
+
+  const shutdown = async (signal: string) => {
+    logger.info("mm.shutdown", { signal });
     for (const mm of makers) {
       try {
-        await mm.tick();
+        await mm.cancelAllOrders();
       } catch (err) {
-        logger.error("mm.tick.error", {
+        logger.error("mm.shutdown.cancel_failed", {
           symbol: mm.getSymbol(),
           error: err,
         });
       }
     }
+    logger.info("mm.shutdown.complete");
+    process.exit(0);
   };
 
-  setInterval(tick, TICK_MS);
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+
+  loop();
 }
 
 main().catch((err) => {

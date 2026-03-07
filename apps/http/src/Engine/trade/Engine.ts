@@ -26,6 +26,7 @@ import { BASE_ASSETS, MARKETS } from "../config/markets";
 import { KlineManager } from "./KlineManager";
 import { OrderBook } from "./OrderBook";
 import { logger } from "../../utils/logger.js";
+import { prismaClient } from "@repo/db/client";
 
 // Round to 8 decimal places to prevent floating-point drift
 function round8(n: number): number {
@@ -49,6 +50,196 @@ export class Engine {
     logger.info("engine.initialized", {
       markets: this.orderBooks.map((ob) => ob.getMarketPair()),
     });
+  }
+
+  static async create(): Promise<Engine> {
+    const engine = new Engine();
+    await engine.restore();
+    return engine;
+  }
+
+  private async restore(): Promise<void> {
+    logger.info("engine.restore.starting");
+    try {
+      await Promise.all([
+        this.restoreBalances(),
+        this.restoreOrders(),
+        this.restoreTradeHistory(),
+        this.restoreKlines(),
+      ]);
+      logger.info("engine.restore.complete");
+    } catch (err) {
+      logger.error("engine.restore.failed", { error: err });
+      logger.info("engine.restore.continuing_with_empty_state");
+    }
+  }
+
+  private async restoreBalances(): Promise<void> {
+    const wallets = await prismaClient.wallet.findMany();
+    if (wallets.length === 0) return;
+
+    for (const w of wallets) {
+      if (!this.balances.has(w.userId)) {
+        this.balances.set(w.userId, {});
+      }
+      const userBal = this.balances.get(w.userId)!;
+      userBal[w.asset] = {
+        available: Number(w.balance),
+        locked: 0,
+      };
+    }
+    logger.info("engine.restore.balances", {
+      users: this.balances.size,
+      wallets: wallets.length,
+    });
+  }
+
+  private async restoreOrders(): Promise<void> {
+    const openOrders = await prismaClient.order.findMany({
+      where: { status: { in: ["open", "partially_filled"] } },
+      orderBy: { createdAt: "asc" },
+    });
+    if (openOrders.length === 0) return;
+
+    let restored = 0;
+    for (const o of openOrders) {
+      const orderbook = this.orderBooks.find(
+        (ob) => ob.getMarketPair() === o.market,
+      );
+      if (!orderbook) continue;
+
+      const order: Order = {
+        orderId: o.id,
+        userId: o.userId,
+        side: o.side as "buy" | "sell",
+        price: Number(o.price),
+        quantity: Number(o.quantity),
+        filled: Number(o.filled),
+        lockedQuote:
+          o.side === "buy"
+            ? (Number(o.quantity) - Number(o.filled)) * Number(o.price)
+            : undefined,
+      };
+
+      // Insert directly into the book without matching
+      if (order.side === "buy") {
+        orderbook.restoreBid(order);
+      } else {
+        orderbook.restoreAsk(order);
+      }
+
+      // Lock funds for the open portion
+      const baseAsset = o.market.split("_")[0];
+      const quoteAsset = o.market.split("_")[1];
+      if (baseAsset && quoteAsset) {
+        const userBal = this.balances.get(o.userId);
+        if (userBal) {
+          if (o.side === "buy" && userBal[quoteAsset]) {
+            const lockAmount = round8(
+              (Number(o.quantity) - Number(o.filled)) * Number(o.price),
+            );
+            userBal[quoteAsset].available = round8(
+              userBal[quoteAsset].available - lockAmount,
+            );
+            userBal[quoteAsset].locked = round8(
+              userBal[quoteAsset].locked + lockAmount,
+            );
+          } else if (o.side === "sell" && userBal[baseAsset]) {
+            const lockAmount = round8(Number(o.quantity) - Number(o.filled));
+            userBal[baseAsset].available = round8(
+              userBal[baseAsset].available - lockAmount,
+            );
+            userBal[baseAsset].locked = round8(
+              userBal[baseAsset].locked + lockAmount,
+            );
+          }
+        }
+      }
+      restored++;
+    }
+
+    // Update lastTradeId to max tradeId from DB so new trades don't collide
+    const maxTrade = await prismaClient.trade.findFirst({
+      orderBy: { tradeId: "desc" },
+      select: { tradeId: true },
+    });
+    if (maxTrade) {
+      for (const ob of this.orderBooks) {
+        if (ob.lastTradeId <= maxTrade.tradeId) {
+          ob.lastTradeId = maxTrade.tradeId + 1;
+        }
+      }
+    }
+
+    logger.info("engine.restore.orders", {
+      restored,
+      total: openOrders.length,
+    });
+  }
+
+  private async restoreTradeHistory(): Promise<void> {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentTrades = await prismaClient.trade.findMany({
+      where: { createdAt: { gte: twentyFourHoursAgo } },
+      orderBy: { createdAt: "asc" },
+    });
+    if (recentTrades.length === 0) return;
+
+    for (const t of recentTrades) {
+      const history = this.tradeHistory.get(t.symbol) || [];
+      history.push({
+        price: Number(t.price),
+        quantity: Number(t.quantity),
+        timestamp: t.createdAt.getTime(),
+      });
+      this.tradeHistory.set(t.symbol, history);
+    }
+
+    // Recalculate market stats from restored history
+    for (const market of this.tradeHistory.keys()) {
+      this.calculate24hStats(market);
+    }
+
+    logger.info("engine.restore.trade_history", {
+      trades: recentTrades.length,
+    });
+  }
+
+  private async restoreKlines(): Promise<void> {
+    const intervals = ["1m", "5m", "15m", "1h", "4h", "1d"];
+    let total = 0;
+
+    for (const market of MARKETS) {
+      for (const interval of intervals) {
+        const candles = await prismaClient.ohlcvCandle.findMany({
+          where: { symbol: market.symbol, interval },
+          orderBy: { openTime: "asc" },
+          take: 500,
+        });
+        if (candles.length === 0) continue;
+
+        this.klineManager.restoreHistory(
+          market.symbol,
+          interval,
+          candles.map((c) => ({
+            openTime: Number(c.openTime),
+            closeTime: Number(c.closeTime),
+            open: Number(c.open),
+            high: Number(c.high),
+            low: Number(c.low),
+            close: Number(c.close),
+            volume: Number(c.volume),
+            trades: c.trades,
+            interval,
+            market: market.symbol,
+            isClosed: true,
+          })),
+        );
+        total += candles.length;
+      }
+    }
+
+    logger.info("engine.restore.klines", { candles: total });
   }
 
   private initializeMarketStats() {
