@@ -11,6 +11,7 @@ import {
   createOrderSchema,
   klineQuerySchema,
   symbolQuerySchema,
+  tradesQuerySchema,
 } from "./validation";
 import {
   getEngine,
@@ -142,6 +143,30 @@ app.get("/depth", async (req, res) => {
   } catch (e) {
     logger.error("depth.failed", { error: e });
     res.status(500).json({ error: "Failed to get depth" });
+  }
+});
+
+app.get("/trades", async (req, res) => {
+  const parsed = tradesQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { symbol, limit } = parsed.data;
+  logger.info("http.get_trades", { symbol, limit });
+  try {
+    const engine = getEngine();
+    if (!engine) {
+      res.status(503).json({ error: "Engine not ready" });
+      return;
+    }
+    const trades = engine.getTradesDirect(symbol, limit);
+    res.json(trades);
+  } catch (e) {
+    logger.error("trades.failed", { error: e });
+    res.status(500).json({ error: "Failed to get trades" });
   }
 });
 

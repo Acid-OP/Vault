@@ -210,12 +210,12 @@ export class SignalingManager {
 
   private handleTradeUpdate(symbol: string, data: any) {
     const trade: Trade = {
-      tradeId: data.t || 0,
+      tradeId: data.tradeId || 0,
       symbol: symbol,
-      price: data.p || "0",
-      quantity: data.q || "0",
+      price: data.price || "0",
+      quantity: data.quantity || "0",
       side: data.side || "buy",
-      timestamp: data.T || Date.now(),
+      timestamp: data.timestamp || Date.now(),
     };
 
     if (!this.tradeCache[symbol]) {

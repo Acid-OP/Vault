@@ -99,7 +99,7 @@ export class Engine {
     const open24h =
       currentStats?.open24h && currentStats.open24h !== 0
         ? currentStats.open24h
-        : 0;
+        : history[0]?.price || 0;
 
     const high24h = Math.max(...history.map((t) => t.price));
     const low24h = Math.min(...history.map((t) => t.price));
@@ -1063,6 +1063,14 @@ export class Engine {
         isClosed: k.isClosed,
       })),
     };
+  }
+
+  public getTradesDirect(
+    market: string,
+    limit: number = 100,
+  ): TradeHistoryEntry[] {
+    const history = this.tradeHistory.get(market) || [];
+    return history.slice(-limit).reverse();
   }
 
   public getBalanceDirect(userId: string): UserBalance | null {
