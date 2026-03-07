@@ -38,7 +38,7 @@ interface Callback {
 }
 
 export class SignalingManager {
-  private ws: WebSocket;
+  private ws!: WebSocket;
   private static instance: SignalingManager;
   private initialized: boolean = false;
   private callbacks: Record<MessageType, Callback[]> = {
@@ -50,11 +50,19 @@ export class SignalingManager {
 
   private depthCache: Record<string, DepthUpdate> = {};
   private tradeCache: Record<string, Trade[]> = {};
-  private subscribedSymbols: Set<string> = new Set();
+  private subscribedSymbols: Map<string, number> = new Map();
   private pendingSubscriptions: string[] = [];
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 20;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   private constructor() {
-    this.ws = new WebSocket("ws://localhost:3002");
+    this.connect();
+  }
+
+  private connect() {
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3002";
+    this.ws = new WebSocket(wsUrl);
     this.init();
   }
 
@@ -67,8 +75,9 @@ export class SignalingManager {
 
   private init() {
     this.ws.onopen = () => {
-      console.log("✅ WebSocket Connected");
+      console.log("WebSocket Connected");
       this.initialized = true;
+      this.reconnectAttempts = 0;
 
       this.pendingSubscriptions.forEach((symbol) => {
         this.sendSubscribe(symbol);
@@ -120,28 +129,55 @@ export class SignalingManager {
     };
 
     this.ws.onerror = (error) => {
-      console.error("❌ WebSocket Error:", error);
+      console.error("WebSocket Error:", error);
     };
 
     this.ws.onclose = () => {
-      console.log("🔴 WebSocket Disconnected");
+      console.log("WebSocket Disconnected");
       this.initialized = false;
+      this.scheduleReconnect();
     };
   }
 
-  public subscribe(symbol: string) {
-    if (this.subscribedSymbols.has(symbol)) {
-      console.log(`Already subscribed to ${symbol}`);
+  private scheduleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error("WebSocket max reconnect attempts reached");
       return;
     }
+    if (this.reconnectTimer) return;
 
-    this.subscribedSymbols.add(symbol);
+    const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 30000);
+    console.log(
+      `WebSocket reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`,
+    );
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.reconnectAttempts++;
+      this.connect();
+
+      // Re-subscribe to all active symbols once connected
+      this.subscribedSymbols.forEach((_count, symbol) => {
+        if (this.initialized) {
+          this.sendSubscribe(symbol);
+        } else {
+          this.pendingSubscriptions.push(symbol);
+        }
+      });
+    }, delay);
+  }
+
+  public subscribe(symbol: string) {
+    const count = this.subscribedSymbols.get(symbol) || 0;
+    this.subscribedSymbols.set(symbol, count + 1);
+
+    // Only send the WS subscribe on the first consumer
+    if (count > 0) return;
 
     if (this.initialized) {
       this.sendSubscribe(symbol);
     } else {
       this.pendingSubscriptions.push(symbol);
-      console.log(`Buffering subscription for ${symbol}`);
     }
   }
 
@@ -156,21 +192,23 @@ export class SignalingManager {
   }
 
   public unsubscribe(symbol: string) {
-    if (!this.subscribedSymbols.has(symbol)) {
-      return;
+    const count = this.subscribedSymbols.get(symbol) || 0;
+    if (count <= 0) return;
+
+    if (count === 1) {
+      // Last consumer — actually unsubscribe from WS
+      this.subscribedSymbols.delete(symbol);
+
+      if (this.initialized) {
+        const unsubscribeMessage = {
+          method: "UNSUBSCRIBE",
+          params: [`depth@${symbol}`, `trade@${symbol}`, `ticker@${symbol}`],
+        };
+        this.ws.send(JSON.stringify(unsubscribeMessage));
+      }
+    } else {
+      this.subscribedSymbols.set(symbol, count - 1);
     }
-
-    const unsubscribeMessage = {
-      method: "UNSUBSCRIBE",
-      params: [`depth@${symbol}`, `trade@${symbol}`, `ticker@${symbol}`],
-    };
-
-    if (this.initialized) {
-      this.ws.send(JSON.stringify(unsubscribeMessage));
-      console.log("📤 Unsubscription sent:", unsubscribeMessage);
-    }
-
-    this.subscribedSymbols.delete(symbol);
   }
 
   private handleTickerUpdate(symbol: string, data: any) {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 interface TradeFormProps {
+  side: "buy" | "sell";
   price: string;
   setPrice: (value: string) => void;
   quantity: string;
@@ -9,9 +10,13 @@ interface TradeFormProps {
   handlePercentageChange: (value: number) => void;
   orderValue: string;
   setOrderValue: (value: string) => void;
+  onSubmit: () => void;
+  loading: boolean;
+  feedback: { type: "success" | "error"; message: string } | null;
 }
 
 const TradeForm: React.FC<TradeFormProps> = ({
+  side,
   price,
   setPrice,
   quantity,
@@ -20,6 +25,9 @@ const TradeForm: React.FC<TradeFormProps> = ({
   handlePercentageChange,
   orderValue,
   setOrderValue,
+  onSubmit,
+  loading,
+  feedback,
 }) => {
   const [postOnly, setPostOnly] = useState(false);
   const [ioc, setIoc] = useState(false);
@@ -123,12 +131,32 @@ const TradeForm: React.FC<TradeFormProps> = ({
       </div>
 
       <div className="space-y-1.5">
-        <button className="w-full py-2 bg-[#eaecef] text-[#0e0f14] cursor-pointer text-[11px] font-semibold rounded-md hover:bg-white transition-colors">
-          Sign up to trade
+        <button
+          onClick={onSubmit}
+          disabled={loading}
+          className={`w-full py-2.5 text-[11px] font-semibold rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+            side === "buy"
+              ? "bg-[#00c176] hover:bg-[#00a866] text-white"
+              : "bg-[#ea3941] hover:bg-[#d32f37] text-white"
+          }`}
+        >
+          {loading
+            ? "Placing..."
+            : side === "buy"
+              ? "Buy / Long"
+              : "Sell / Short"}
         </button>
-        <button className="w-full py-2 bg-[#13141c] text-[#848e9c] cursor-pointer text-[11px] font-semibold rounded-md hover:bg-[#1c1e2c] transition-colors border border-[rgba(42,46,57,0.25)]">
-          Sign in to trade
-        </button>
+        {feedback && (
+          <div
+            className={`text-[10px] px-2 py-1.5 rounded ${
+              feedback.type === "success"
+                ? "text-[#00c176] bg-[#00c176]/10"
+                : "text-[#ea3941] bg-[#ea3941]/10"
+            }`}
+          >
+            {feedback.message}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-4 mt-2.5">

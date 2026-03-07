@@ -5,17 +5,21 @@ import { logger } from "../utils/logger.js";
 export class RedisManager {
   private client: RedisClientType;
   private static instance: RedisManager;
+  private ready: Promise<void>;
 
   private constructor() {
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
     this.client = createClient({ url: redisUrl });
-    this.client
+    this.ready = this.client
       .connect()
-      .then(() => logger.info("redis_manager.connected"))
-      .catch((err) =>
-        logger.error("redis_manager.connection_failed", { error: err }),
-      );
+      .then(() => {
+        logger.info("redis_manager.connected");
+      })
+      .catch((err) => {
+        logger.error("redis_manager.connection_failed", { error: err });
+        throw err;
+      });
   }
 
   public static getInstance() {
@@ -25,7 +29,13 @@ export class RedisManager {
     return this.instance;
   }
 
+  public static async waitForReady() {
+    const instance = this.getInstance();
+    await instance.ready;
+  }
+
   public async Publish(channel: string, message: any) {
+    await this.ready;
     try {
       logger.info("redis_manager.publishing", { channel });
       await this.client.publish(channel, JSON.stringify(message));
@@ -37,6 +47,7 @@ export class RedisManager {
   }
 
   public async ResponseToHTTP(clientId: string, message: ResponseToHTTP) {
+    await this.ready;
     try {
       logger.info("redis_manager.response_to_http", { clientId });
       await this.client.publish(clientId, JSON.stringify(message));
@@ -48,12 +59,15 @@ export class RedisManager {
   }
 
   public pushDbEvent(event: any): void {
-    this.client.lPush("db_events", JSON.stringify(event)).catch((err) => {
-      logger.error("redis_manager.db_event_push_failed", { error: err });
-    });
+    this.ready
+      .then(() => this.client.lPush("db_events", JSON.stringify(event)))
+      .catch((err) => {
+        logger.error("redis_manager.db_event_push_failed", { error: err });
+      });
   }
 
   public async cleanup() {
+    await this.ready;
     await this.client.quit();
   }
 }

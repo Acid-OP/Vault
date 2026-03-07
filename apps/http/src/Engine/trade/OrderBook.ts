@@ -8,6 +8,8 @@ export class OrderBook {
   quoteAsset: string = BASE_CURRENCY;
   lastTradeId: number;
   currentPrice: number;
+  private orderIndex: Map<string, { side: "buy" | "sell"; order: Order }> =
+    new Map();
   constructor(
     baseAsset: string,
     bids: Order[],
@@ -55,11 +57,13 @@ export class OrderBook {
   private insertBid(order: Order) {
     // Bids: highest price first (descending)
     this.insertSorted(this.bids, order, (a, b) => b.price - a.price);
+    this.orderIndex.set(order.orderId, { side: "buy", order });
   }
 
   private insertAsk(order: Order) {
     // Asks: lowest price first (ascending)
     this.insertSorted(this.asks, order, (a, b) => a.price - b.price);
+    this.orderIndex.set(order.orderId, { side: "sell", order });
   }
   private matchBid(order: Order) {
     logger.info("orderbook.matching_bid", {
@@ -100,6 +104,7 @@ export class OrderBook {
       }
       if (ask.filled === ask.quantity) {
         this.asks.splice(i, 1);
+        this.orderIndex.delete(ask.orderId);
         i--;
       }
     }
@@ -150,6 +155,7 @@ export class OrderBook {
       }
       if (bid && bid.filled === bid.quantity) {
         this.bids.splice(i, 1);
+        this.orderIndex.delete(bid.orderId);
         i--;
       }
     }
@@ -210,6 +216,10 @@ export class OrderBook {
       aggregatedAsks: aggregatedAsks.slice(0, limit),
     };
   }
+  findOrder(orderId: string): Order | undefined {
+    return this.orderIndex.get(orderId)?.order;
+  }
+
   cancelBid(order: Order) {
     logger.info("orderbook.cancelling_bid", { orderId: order.orderId });
     const index = this.bids.findIndex((g) => g.orderId === order.orderId);
@@ -217,6 +227,7 @@ export class OrderBook {
       if (this.bids && this.bids[index]) {
         const price = this.bids[index].price;
         this.bids.splice(index, 1);
+        this.orderIndex.delete(order.orderId);
         logger.info("orderbook.bid_cancelled", { price });
         return price;
       }
@@ -232,6 +243,7 @@ export class OrderBook {
       if (this.asks && this.asks[index]) {
         const price = this.asks[index].price;
         this.asks.splice(index, 1);
+        this.orderIndex.delete(order.orderId);
         logger.info("orderbook.ask_cancelled", { price });
         return price;
       }

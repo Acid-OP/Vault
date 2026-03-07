@@ -1,6 +1,5 @@
 import express from "express";
 import dotenv from "dotenv";
-import "./Engine/main/dequeue";
 import cors from "cors";
 import { Manager } from "./RedisClient";
 import { CANCEL_ORDER, CREATE_ORDER } from "./types/orders";
@@ -15,6 +14,7 @@ import {
 } from "./validation";
 import {
   getEngine,
+  startDequeue,
   stopDequeue,
   startDepthSnapshotTimer,
   stopDepthSnapshotTimer,
@@ -247,6 +247,9 @@ let batcher: DbBatcher | null = null;
 async function start() {
   await Manager.waitForReady();
   logger.info("redis.ready");
+
+  await startDequeue();
+  logger.info("dequeue.started");
 
   batcher = new DbBatcher();
   await batcher.start();

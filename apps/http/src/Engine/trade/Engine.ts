@@ -27,6 +27,11 @@ import { KlineManager } from "./KlineManager";
 import { OrderBook } from "./OrderBook";
 import { logger } from "../../utils/logger.js";
 
+// Round to 8 decimal places to prevent floating-point drift
+function round8(n: number): number {
+  return Math.round(n * 1e8) / 1e8;
+}
+
 export class Engine {
   private orderBooks: OrderBook[] = [];
   private balances: Map<userId, UserBalance> = new Map();
@@ -101,13 +106,19 @@ export class Engine {
         ? currentStats.open24h
         : history[0]?.price || 0;
 
-    const high24h = Math.max(...history.map((t) => t.price));
-    const low24h = Math.min(...history.map((t) => t.price));
-    const volume24h = history.reduce((sum, t) => sum + t.quantity, 0);
-    const quoteVolume24h = history.reduce(
-      (sum, t) => sum + t.price * t.quantity,
-      0,
-    );
+    let high24h = -Infinity;
+    let low24h = Infinity;
+    let volume24h = 0;
+    let quoteVolume24h = 0;
+    for (let i = 0; i < history.length; i++) {
+      const t = history[i]!;
+      if (t.price > high24h) high24h = t.price;
+      if (t.price < low24h) low24h = t.price;
+      volume24h += t.quantity;
+      quoteVolume24h += t.price * t.quantity;
+    }
+    if (high24h === -Infinity) high24h = 0;
+    if (low24h === Infinity) low24h = 0;
     const lastPrice = history[history.length - 1]?.price || 0;
 
     const updatedStats = {
@@ -216,7 +227,7 @@ export class Engine {
     }
 
     fills.forEach((fill) => {
-      const tradeValue = fill.qty * Number(fill.price);
+      const tradeValue = round8(fill.qty * Number(fill.price));
       const otherUserId = fill.otherUserId;
       const otherUserBalance = this.balances.get(otherUserId);
 
@@ -244,20 +255,36 @@ export class Engine {
 
       if (side === "buy") {
         // Buyer (taker) receives base asset, releases locked quote asset
-        userBalance[baseAsset].available += fill.qty;
-        userBalance[quoteAsset].locked -= tradeValue;
+        userBalance[baseAsset].available = round8(
+          userBalance[baseAsset].available + fill.qty,
+        );
+        userBalance[quoteAsset].locked = round8(
+          userBalance[quoteAsset].locked - tradeValue,
+        );
 
         // Seller (maker) receives quote asset, releases locked base asset
-        otherUserBalance[quoteAsset].available += tradeValue;
-        otherUserBalance[baseAsset].locked -= fill.qty;
+        otherUserBalance[quoteAsset].available = round8(
+          otherUserBalance[quoteAsset].available + tradeValue,
+        );
+        otherUserBalance[baseAsset].locked = round8(
+          otherUserBalance[baseAsset].locked - fill.qty,
+        );
       } else {
         // Seller (taker) receives quote asset, releases locked base asset
-        userBalance[quoteAsset].available += tradeValue;
-        userBalance[baseAsset].locked -= fill.qty;
+        userBalance[quoteAsset].available = round8(
+          userBalance[quoteAsset].available + tradeValue,
+        );
+        userBalance[baseAsset].locked = round8(
+          userBalance[baseAsset].locked - fill.qty,
+        );
 
         // Buyer (maker) receives base asset, releases locked quote asset
-        otherUserBalance[baseAsset].available += fill.qty;
-        otherUserBalance[quoteAsset].locked -= tradeValue;
+        otherUserBalance[baseAsset].available = round8(
+          otherUserBalance[baseAsset].available + fill.qty,
+        );
+        otherUserBalance[quoteAsset].locked = round8(
+          otherUserBalance[quoteAsset].locked - tradeValue,
+        );
       }
     });
     logger.info("engine.balance_update_complete", { userId });
@@ -317,13 +344,13 @@ export class Engine {
           (sum, f) => sum + f.qty * Number(f.price),
           0,
         );
-        const surplus = totalLocked - totalSpent;
+        const surplus = round8(totalLocked - totalSpent);
         if (surplus > 0) {
           const takerBalance = this.balances.get(userId);
           const quoteBalance = takerBalance?.[quoteAsset];
           if (quoteBalance) {
-            quoteBalance.available += surplus;
-            quoteBalance.locked -= surplus;
+            quoteBalance.available = round8(quoteBalance.available + surplus);
+            quoteBalance.locked = round8(quoteBalance.locked - surplus);
             logger.info("engine.price_improvement_refund", {
               surplus,
               quoteAsset,
@@ -601,7 +628,7 @@ export class Engine {
           `User ${userId} has no ${quoteAsset} balance. Cannot buy.`,
         );
       }
-      const required = price * quantity;
+      const required = round8(price * quantity);
       if (userBalance[quoteAsset].available < required) {
         logger.error("engine.insufficient_funds", {
           asset: quoteAsset,
@@ -612,8 +639,12 @@ export class Engine {
           `Insufficient ${quoteAsset}. Required: ${required}, Available: ${userBalance[quoteAsset].available}`,
         );
       }
-      userBalance[quoteAsset].available -= required;
-      userBalance[quoteAsset].locked += required;
+      userBalance[quoteAsset].available = round8(
+        userBalance[quoteAsset].available - required,
+      );
+      userBalance[quoteAsset].locked = round8(
+        userBalance[quoteAsset].locked + required,
+      );
       logger.info("engine.funds_locked", {
         amount: required,
         asset: quoteAsset,
@@ -632,8 +663,12 @@ export class Engine {
         throw new Error("Insufficient base asset");
       }
       if (userBalance[baseAsset]) {
-        userBalance[baseAsset].available -= quantity;
-        userBalance[baseAsset].locked += quantity;
+        userBalance[baseAsset].available = round8(
+          userBalance[baseAsset].available - quantity,
+        );
+        userBalance[baseAsset].locked = round8(
+          userBalance[baseAsset].locked + quantity,
+        );
         logger.info("engine.funds_locked", {
           amount: quantity,
           asset: baseAsset,
@@ -790,9 +825,7 @@ export class Engine {
           if (!baseAsset || !quoteAsset) {
             throw new Error("Invalid market format");
           }
-          const order =
-            cancelOrderbook.asks.find((x) => x.orderId === orderId) ||
-            cancelOrderbook.bids.find((x) => x.orderId === orderId);
+          const order = cancelOrderbook.findOrder(orderId);
           if (!order) {
             throw new Error("No order found");
           }
@@ -813,8 +846,12 @@ export class Engine {
                 ? order.lockedQuote
                 : (order.quantity - order.filled) * order.price;
 
-            userBalance[quoteAsset].available += leftQuantity;
-            userBalance[quoteAsset].locked -= leftQuantity;
+            userBalance[quoteAsset].available = round8(
+              userBalance[quoteAsset].available + leftQuantity,
+            );
+            userBalance[quoteAsset].locked = round8(
+              userBalance[quoteAsset].locked - leftQuantity,
+            );
             logger.info("engine.funds_unlocked", {
               amount: leftQuantity,
               asset: quoteAsset,
@@ -830,10 +867,14 @@ export class Engine {
             }
 
             const price = cancelOrderbook.cancelAsk(order);
-            const leftQuantity = order.quantity - order.filled;
+            const leftQuantity = round8(order.quantity - order.filled);
 
-            userBalance[baseAsset].available += leftQuantity;
-            userBalance[baseAsset].locked -= leftQuantity;
+            userBalance[baseAsset].available = round8(
+              userBalance[baseAsset].available + leftQuantity,
+            );
+            userBalance[baseAsset].locked = round8(
+              userBalance[baseAsset].locked - leftQuantity,
+            );
             logger.info("engine.funds_unlocked", {
               amount: leftQuantity,
               asset: baseAsset,

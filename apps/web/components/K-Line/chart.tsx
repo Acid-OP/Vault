@@ -126,7 +126,7 @@ export default function KLineChart({ market }: KLineChartProps) {
     const fetchKlines = async () => {
       try {
         const res = await fetch(
-          `http://localhost:3001/klines?symbol=${market}&interval=${interval}&limit=500`,
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/klines?symbol=${market}&interval=${interval}&limit=500`,
           { signal: abortController.signal },
         );
         const data = await res.json();

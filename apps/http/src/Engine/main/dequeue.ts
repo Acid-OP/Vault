@@ -58,7 +58,7 @@ export function stopDepthSnapshotTimer() {
   }
 }
 
-async function main() {
+export async function startDequeue() {
   logger.info("dequeue.starting");
   await client
     .connect()
@@ -70,26 +70,26 @@ async function main() {
   engineInstance = new Engine();
   logger.info("dequeue.engine_initialized");
 
-  while (running) {
-    try {
-      const result = await client.brPop("body", 5);
-      if (result) {
-        logger.info("dequeue.message_received", { message: result.element });
-        try {
-          engineInstance.process(JSON.parse(result.element));
-          logger.info("dequeue.message_processed");
-        } catch (err) {
-          logger.error("dequeue.processing_failed", { error: err });
+  (async () => {
+    while (running) {
+      try {
+        const result = await client.brPop("body", 5);
+        if (result) {
+          logger.info("dequeue.message_received", { message: result.element });
+          try {
+            engineInstance!.process(JSON.parse(result.element));
+            logger.info("dequeue.message_processed");
+          } catch (err) {
+            logger.error("dequeue.processing_failed", { error: err });
+          }
         }
+      } catch (err) {
+        logger.error("dequeue.brpop_failed", { error: err });
+        await new Promise((r) => setTimeout(r, 1000));
       }
-    } catch (err) {
-      logger.error("dequeue.brpop_failed", { error: err });
-      await new Promise((r) => setTimeout(r, 1000));
     }
-  }
 
-  await client.quit();
-  logger.info("dequeue.shutdown_complete");
+    await client.quit();
+    logger.info("dequeue.shutdown_complete");
+  })();
 }
-
-main();
