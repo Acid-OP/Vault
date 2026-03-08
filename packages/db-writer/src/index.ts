@@ -6,4 +6,5 @@ export type {
   TradeEvent,
   KlineUpdateEvent,
   DepthSnapshotEvent,
+  BalanceUpdateEvent,
 } from "./types.js";

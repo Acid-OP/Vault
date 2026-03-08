@@ -50,9 +50,18 @@ export interface DepthSnapshotEvent {
   timestamp: number;
 }
 
+export interface BalanceUpdateEvent {
+  type: "BALANCE_UPDATE";
+  userId: string;
+  asset: string;
+  available: number;
+  locked: number;
+}
+
 export type DbEvent =
   | OrderNewEvent
   | OrderCancelEvent
   | TradeEvent
   | KlineUpdateEvent
-  | DepthSnapshotEvent;
+  | DepthSnapshotEvent
+  | BalanceUpdateEvent;

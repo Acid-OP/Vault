@@ -33,6 +33,9 @@ function round8(n: number): number {
   return Math.round(n * 1e8) / 1e8;
 }
 
+// Collect all affected (userId, asset) pairs, then flush once
+type BalanceDirtySet = Set<string>; // "userId:asset"
+
 export class Engine {
   private orderBooks: OrderBook[] = [];
   private balances: Map<userId, UserBalance> = new Map();
@@ -84,8 +87,8 @@ export class Engine {
       }
       const userBal = this.balances.get(w.userId)!;
       userBal[w.asset] = {
-        available: Number(w.balance),
-        locked: 0,
+        available: Number(w.available),
+        locked: Number(w.locked),
       };
     }
     logger.info("engine.restore.balances", {
@@ -796,6 +799,23 @@ export class Engine {
     }
   }
 
+  private pushBalanceUpdates(dirty: BalanceDirtySet) {
+    for (const key of dirty) {
+      const [userId, asset] = key.split(":");
+      if (!userId || !asset) continue;
+      const userBal = this.balances.get(userId);
+      const assetBal = userBal?.[asset];
+      if (!assetBal) continue;
+      RedisManager.getInstance().pushDbEvent({
+        type: "BALANCE_UPDATE",
+        userId,
+        asset,
+        available: assetBal.available,
+        locked: assetBal.locked,
+      });
+    }
+  }
+
   private checkAndLockFunds(
     userId: string,
     side: "buy" | "sell",
@@ -960,6 +980,17 @@ export class Engine {
             throw new Error("Order creation failed — market not found");
           }
           const { executedQty, fills, orderId } = createorder;
+
+          // Persist balance changes for taker + all counterparties
+          const dirty: BalanceDirtySet = new Set();
+          dirty.add(`${message.data.userId}:${baseAsset}`);
+          dirty.add(`${message.data.userId}:${quoteAsset}`);
+          for (const f of fills) {
+            dirty.add(`${f.otherUserId}:${baseAsset}`);
+            dirty.add(`${f.otherUserId}:${quoteAsset}`);
+          }
+          this.pushBalanceUpdates(dirty);
+
           logger.info("engine.order_placed", {
             orderId,
             executedQty,
@@ -1077,6 +1108,12 @@ export class Engine {
             }
           }
           logger.info("engine.order_cancelled", { orderId });
+
+          // Persist balance change
+          const cancelDirty: BalanceDirtySet = new Set();
+          cancelDirty.add(`${order.userId}:${baseAsset}`);
+          cancelDirty.add(`${order.userId}:${quoteAsset}`);
+          this.pushBalanceUpdates(cancelDirty);
 
           // Persist cancel
           RedisManager.getInstance().pushDbEvent({
@@ -1308,5 +1345,21 @@ export class Engine {
   public getBalanceDirect(userId: string): UserBalance | null {
     this.defaultBalances(userId);
     return this.balances.get(userId) || null;
+  }
+
+  public deposit(userId: string, asset: string, amount: number) {
+    this.defaultBalances(userId);
+    const userBal = this.balances.get(userId)!;
+    if (!userBal[asset]) {
+      userBal[asset] = { available: 0, locked: 0 };
+    }
+    userBal[asset].available = round8(userBal[asset].available + amount);
+    logger.info("engine.deposit", { userId, asset, amount });
+
+    const dirty: BalanceDirtySet = new Set();
+    dirty.add(`${userId}:${asset}`);
+    this.pushBalanceUpdates(dirty);
+
+    return userBal[asset];
   }
 }

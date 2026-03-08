@@ -34,6 +34,12 @@ export const tradesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional().default(100),
 });
 
+export const depositSchema = z.object({
+  userId: z.string().min(1),
+  asset: z.string().min(1),
+  amount: z.coerce.number().positive(),
+});
+
 export const klineQuerySchema = z.object({
   symbol: z.string().regex(/^[A-Z0-9]+_[A-Z]+$/),
   interval: z

@@ -8,6 +8,7 @@ import {
   balanceQuerySchema,
   cancelOrderSchema,
   createOrderSchema,
+  depositSchema,
   klineQuerySchema,
   symbolQuerySchema,
   tradesQuerySchema,
@@ -242,6 +243,35 @@ app.get("/balance", async (req, res) => {
   } catch (e) {
     logger.error("balance.failed", { error: e });
     res.status(500).json({ error: "Failed to get balance" });
+  }
+});
+
+app.post("/deposit", async (req, res) => {
+  const parsed = depositSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+  const { userId, asset, amount } = parsed.data;
+  logger.info("http.deposit", { userId, asset, amount });
+  try {
+    const engine = getEngine();
+    if (!engine) {
+      res.status(503).json({ error: "Engine not ready" });
+      return;
+    }
+    const updated = engine.deposit(userId, asset, amount);
+    res.json({
+      userId,
+      asset,
+      available: updated.available,
+      locked: updated.locked,
+    });
+  } catch (e) {
+    logger.error("deposit.failed", { error: e });
+    res.status(500).json({ error: "Failed to deposit" });
   }
 });
 

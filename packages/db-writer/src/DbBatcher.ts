@@ -8,6 +8,7 @@ import {
   TradeEvent,
   KlineUpdateEvent,
   DepthSnapshotEvent,
+  BalanceUpdateEvent,
 } from "./types.js";
 
 const logger = createLogger({ service: "db-writer" });
@@ -25,6 +26,7 @@ export class DbBatcher {
   private tradeBatch: TradeEvent[] = [];
   private klineBatch: KlineUpdateEvent[] = [];
   private depthBatch: DepthSnapshotEvent[] = [];
+  private balanceBatch: BalanceUpdateEvent[] = [];
 
   constructor() {
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
@@ -98,6 +100,9 @@ export class DbBatcher {
       case "DEPTH_SNAPSHOT":
         this.depthBatch.push(event);
         break;
+      case "BALANCE_UPDATE":
+        this.balanceBatch.push(event);
+        break;
     }
   }
 
@@ -107,7 +112,8 @@ export class DbBatcher {
       this.orderCancelBatch.length +
       this.tradeBatch.length +
       this.klineBatch.length +
-      this.depthBatch.length
+      this.depthBatch.length +
+      this.balanceBatch.length
     );
   }
 
@@ -121,6 +127,7 @@ export class DbBatcher {
       this.flushTrades(),
       this.flushKlines(),
       this.flushDepth(),
+      this.flushBalances(),
     ]);
   }
 
@@ -257,6 +264,43 @@ export class DbBatcher {
     } catch (err) {
       logger.error("db_batcher.depth_flush_failed", { error: err });
       this.depthBatch.unshift(...batch);
+    }
+  }
+
+  private async flushBalances(): Promise<void> {
+    if (this.balanceBatch.length === 0) return;
+    const batch = this.balanceBatch.splice(0);
+
+    // Dedupe: keep latest per (userId, asset)
+    const deduped = new Map<string, BalanceUpdateEvent>();
+    for (const e of batch) {
+      deduped.set(`${e.userId}:${e.asset}`, e);
+    }
+
+    try {
+      await prismaClient.$transaction(
+        Array.from(deduped.values()).map((e) =>
+          prismaClient.wallet.upsert({
+            where: {
+              userId_asset: { userId: e.userId, asset: e.asset },
+            },
+            create: {
+              userId: e.userId,
+              asset: e.asset,
+              available: e.available,
+              locked: e.locked,
+            },
+            update: {
+              available: e.available,
+              locked: e.locked,
+            },
+          }),
+        ),
+      );
+      logger.info("db_batcher.balances_flushed", { count: deduped.size });
+    } catch (err) {
+      logger.error("db_batcher.balances_flush_failed", { error: err });
+      this.balanceBatch.unshift(...batch);
     }
   }
 }
