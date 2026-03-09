@@ -131,33 +131,7 @@ export class Engine {
         orderbook.restoreAsk(order);
       }
 
-      // Lock funds for the open portion
-      const baseAsset = o.market.split("_")[0];
-      const quoteAsset = o.market.split("_")[1];
-      if (baseAsset && quoteAsset) {
-        const userBal = this.balances.get(o.userId);
-        if (userBal) {
-          if (o.side === "buy" && userBal[quoteAsset]) {
-            const lockAmount = round8(
-              (Number(o.quantity) - Number(o.filled)) * Number(o.price),
-            );
-            userBal[quoteAsset].available = round8(
-              userBal[quoteAsset].available - lockAmount,
-            );
-            userBal[quoteAsset].locked = round8(
-              userBal[quoteAsset].locked + lockAmount,
-            );
-          } else if (o.side === "sell" && userBal[baseAsset]) {
-            const lockAmount = round8(Number(o.quantity) - Number(o.filled));
-            userBal[baseAsset].available = round8(
-              userBal[baseAsset].available - lockAmount,
-            );
-            userBal[baseAsset].locked = round8(
-              userBal[baseAsset].locked + lockAmount,
-            );
-          }
-        }
-      }
+      // Wallet DB already stores correct available/locked — no re-locking needed
       restored++;
     }
 
