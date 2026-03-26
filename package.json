@@ -4,6 +4,10 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:infra": "docker compose --env-file docker/.env up timescaledb redis -d",
+    "dev:all": "docker compose --env-file docker/.env up timescaledb redis -d && turbo run dev",
+    "docker:up": "docker compose --env-file docker/.env up -d --build",
+    "docker:down": "docker compose --env-file docker/.env down",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "test": "turbo run test",
