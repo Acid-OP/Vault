@@ -910,6 +910,7 @@ export class Engine {
         logger.info("engine.create_order_received", { data: message.data });
         let lockedAmount = 0;
         let lockedAsset = "";
+        let fundsLocked = false;
         try {
           this.defaultBalances(message.data.userId);
           const baseAsset = message.data.market.split("_")[0];
@@ -941,6 +942,7 @@ export class Engine {
             numprice,
             numquantity,
           );
+          fundsLocked = true;
 
           const createorder = this.createOrder(
             message.data.market,
@@ -976,7 +978,7 @@ export class Engine {
           });
         } catch (e) {
           logger.error("engine.create_order_failed", { error: e });
-          if (lockedAsset && message.data) {
+          if (fundsLocked && lockedAsset && message.data) {
             const userBalance = this.balances.get(message.data.userId);
             const assetBalance = userBalance?.[lockedAsset];
 
