@@ -259,14 +259,20 @@ function ScrollRow({
 
 export default function MarketShowcase() {
   return (
-    <section className="py-20 bg-[#0e0f14]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
-        <h2 className="font-[family-name:var(--font-heading)] text-[28px] sm:text-[32px] text-[#eaecef] font-normal tracking-[-0.02em] leading-[1.15]">
-          Trade anyone.
-        </h2>
-        <p className="text-[#3d4354] text-[13px] mt-2">
-          Athletes, creators, icons. Pick a side.
-        </p>
+    <section className="relative py-24 bg-[#0e0f14]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+        <div className="text-center">
+          <p className="text-[#ea3941] text-[12px] font-medium uppercase tracking-widest mb-4">
+            150+ Markets
+          </p>
+          <h2 className="font-[family-name:var(--font-heading)] text-[32px] sm:text-[40px] text-[#eaecef] font-normal tracking-[-0.02em] leading-[1.15]">
+            Trade anyone. Bet on everyone.
+          </h2>
+          <p className="text-[#5d6478] text-[14px] mt-3 max-w-md mx-auto">
+            Athletes, creators, icons — all tradable. Pick a side and ride the
+            momentum.
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">

@@ -23,6 +23,8 @@ canvas {
   image-rendering: -webkit-optimize-contrast;
 }
 
+/* ── Trading flash animations ────────────────────── */
+
 @keyframes flash-green {
   0% { background-color: rgba(0, 193, 118, 0.25); }
   100% { background-color: transparent; }
@@ -45,3 +47,121 @@ canvas {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+/* ── Landing page animations ─────────────────────── */
+
+@keyframes gradient-shift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(240, 185, 11, 0.15); }
+  50% { border-color: rgba(240, 185, 11, 0.4); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-bar {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes chart-draw {
+  from { stroke-dashoffset: 200; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 15s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out both;
+}
+
+.animate-border-glow {
+  animation: border-glow 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-400 { animation-delay: 400ms; }
+.animation-delay-600 { animation-delay: 600ms; }
+.animation-delay-1000 { animation-delay: 1000ms; }
+.animation-delay-2000 { animation-delay: 2000ms; }
+.animation-delay-4000 { animation-delay: 4000ms; }
+
+/* Glass card utility */
+.glass-card {
+  background: rgba(19, 20, 28, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(42, 46, 57, 0.2);
+}
+
+.glass-card-hover:hover {
+  background: rgba(19, 20, 28, 0.8);
+  border-color: rgba(42, 46, 57, 0.4);
+}
+
+/* Gradient text */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #f0b90b 0%, #fcd535 50%, #f0b90b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Dot grid pattern */
+.dot-grid {
+  background-image: radial-gradient(rgba(234, 236, 239, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Animated orderbook bars */
+.bar-pulse {
+  animation: pulse-bar 2s ease-in-out infinite;
+}
+
+.bar-pulse-delay-1 { animation-delay: 0.3s; }
+.bar-pulse-delay-2 { animation-delay: 0.6s; }
+.bar-pulse-delay-3 { animation-delay: 0.9s; }
+.bar-pulse-delay-4 { animation-delay: 1.2s; }

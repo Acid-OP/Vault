@@ -302,22 +302,28 @@ export default function MarketOverview() {
   const [activeTab, setActiveTab] = useState<string>("Popular");
 
   return (
-    <section className="py-16 bg-[#0e0f14]">
+    <section className="py-20 bg-[#0e0f14]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-8">
+        <div className="flex items-end justify-between mb-10">
           <div>
-            <h2 className="font-[family-name:var(--font-heading)] text-[28px] sm:text-[32px] text-[#eaecef] font-normal tracking-[-0.02em]">
+            <p className="text-[#f0b90b] text-[12px] font-medium uppercase tracking-widest mb-3">
+              Live Prices
+            </p>
+            <h2 className="font-[family-name:var(--font-heading)] text-[32px] sm:text-[40px] text-[#eaecef] font-normal tracking-[-0.02em]">
               Markets
             </h2>
-            <p className="text-[#3d4354] text-[13px] mt-1">
-              Real-time prices across top assets.
+            <p className="text-[#5d6478] text-[13px] mt-2">
+              Real-time prices across top personality assets.
             </p>
           </div>
           <Link
-            href="/trade/CR7_USD"
-            className="text-[#00c176] text-[12px] font-medium hover:text-[#00c176]/80 transition-colors"
+            href="/markets"
+            className="group text-[#f0b90b] text-[12px] font-medium hover:text-[#fcd535] transition-colors"
           >
-            View all markets &rarr;
+            View all markets
+            <span className="inline-block ml-0.5 transition-transform duration-200 group-hover:translate-x-1">
+              &rarr;
+            </span>
           </Link>
         </div>
 
@@ -335,7 +341,7 @@ export default function MarketOverview() {
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00c176] rounded-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#f0b90b] rounded-full" />
               )}
             </button>
           ))}
@@ -357,7 +363,7 @@ export default function MarketOverview() {
             <Link
               key={m.symbol}
               href={`/trade/${m.symbol}_USD`}
-              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-4 py-3.5 items-center hover:bg-[#13141c] transition-colors rounded-lg cursor-pointer group"
+              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-4 py-4 items-center hover:bg-[#13141c]/60 transition-all duration-300 rounded-xl cursor-pointer group"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-[#1c1e2c] flex items-center justify-center text-[#848e9c] text-[10px] font-bold shrink-0 group-hover:bg-[#242636] transition-colors">

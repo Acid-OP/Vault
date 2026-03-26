@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar/Navbar";
 import Hero from "../components/Landing/Hero";
 import MarketShowcase from "../components/Landing/MarketShowcase";
+import PersonalitySpotlight from "../components/Landing/HowItWorks";
 import MarketOverview from "../components/Landing/MarketOverview";
 import Features from "../components/Landing/Features";
 import CTASection from "../components/Landing/CTASection";
@@ -12,6 +13,7 @@ export default function Home() {
       <Navbar />
       <Hero />
       <MarketShowcase />
+      <PersonalitySpotlight />
       <MarketOverview />
       <Features />
       <CTASection />
