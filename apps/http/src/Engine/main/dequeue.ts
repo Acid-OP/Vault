@@ -75,10 +75,8 @@ export async function startDequeue() {
       try {
         const result = await client.brPop("body", 5);
         if (result) {
-          logger.info("dequeue.message_received", { message: result.element });
           try {
             engineInstance!.process(JSON.parse(result.element));
-            logger.info("dequeue.message_processed");
           } catch (err) {
             logger.error("dequeue.processing_failed", { error: err });
           }

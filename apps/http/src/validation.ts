@@ -47,4 +47,5 @@ export const klineQuerySchema = z.object({
     .optional()
     .default("1m"),
   limit: z.coerce.number().int().min(1).max(1000).optional().default(500),
+  endTime: z.coerce.number().int().positive().optional(),
 });

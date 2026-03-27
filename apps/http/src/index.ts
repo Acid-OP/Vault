@@ -22,6 +22,7 @@ import {
 } from "./Engine/main/dequeue";
 import { RedisManager } from "./Engine/RedisManager";
 import { DbBatcher } from "@repo/db-writer";
+import { prismaClient } from "@repo/db/client";
 
 dotenv.config();
 const app = express();
@@ -207,9 +208,34 @@ app.get("/klines", async (req, res) => {
       .json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
-  const { symbol, interval, limit } = parsed.data;
-  logger.info("http.get_klines", { symbol, interval, limit });
+  const { symbol, interval, limit, endTime } = parsed.data;
+  logger.info("http.get_klines", { symbol, interval, limit, endTime });
   try {
+    if (endTime) {
+      const rows = await prismaClient.ohlcvCandle.findMany({
+        where: {
+          symbol,
+          interval,
+          openTime: { lt: BigInt(endTime) },
+        },
+        orderBy: { openTime: "desc" },
+        take: limit,
+      });
+      const candles = rows.reverse().map((r) => ({
+        timestamp: Number(r.openTime),
+        closeTime: Number(r.closeTime),
+        open: Number(r.open),
+        high: Number(r.high),
+        low: Number(r.low),
+        close: Number(r.close),
+        volume: Number(r.volume),
+        trades: r.trades,
+        isClosed: true,
+      }));
+      res.json({ symbol, interval, candles });
+      return;
+    }
+
     const engine = getEngine();
     if (!engine) {
       res.status(503).json({ error: "Engine not ready" });

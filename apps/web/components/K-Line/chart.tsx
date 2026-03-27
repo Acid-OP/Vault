@@ -9,13 +9,27 @@ import {
   Time,
   ColorType,
   CrosshairMode,
+  LogicalRange,
 } from "lightweight-charts";
 import { SignalingManager } from "../../utils/Manager";
 
 const INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1d"] as const;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const HISTORY_FETCH_LIMIT = 300;
+const SCROLL_THRESHOLD = 15;
+
+interface VolumeData {
+  time: Time;
+  value: number;
+  color: string;
+}
 
 interface KLineChartProps {
   market: string;
+}
+
+function volumeColor(open: number, close: number): string {
+  return close >= open ? "rgba(0, 193, 118, 0.08)" : "rgba(234, 57, 65, 0.08)";
 }
 
 export default function KLineChart({ market }: KLineChartProps) {
@@ -24,7 +38,14 @@ export default function KLineChart({ market }: KLineChartProps) {
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const lastCandleTimeRef = useRef<number>(0);
-  const [interval, setInterval] = useState<string>("1m");
+
+  const allCandlesRef = useRef<CandlestickData<Time>[]>([]);
+  const allVolumesRef = useRef<VolumeData[]>([]);
+  const isFetchingRef = useRef(false);
+  const hasMoreRef = useRef(true);
+  const oldestTimeRef = useRef<number>(0);
+
+  const [interval, setInterval] = useState<string>("5m");
 
   const initChart = useCallback(() => {
     const container = chartContainerRef.current;
@@ -71,9 +92,9 @@ export default function KLineChart({ market }: KLineChartProps) {
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: 3,
-        minBarSpacing: 0.5,
-        rightOffset: 10,
+        barSpacing: 6,
+        minBarSpacing: 1,
+        rightOffset: 12,
         fixLeftEdge: false,
         fixRightEdge: false,
       },
@@ -85,7 +106,7 @@ export default function KLineChart({ market }: KLineChartProps) {
       },
       handleScale: {
         axisPressedMouseMove: { time: true, price: false },
-        mouseWheel: false,
+        mouseWheel: true,
         pinch: true,
       },
       width: container.clientWidth,
@@ -97,8 +118,8 @@ export default function KLineChart({ market }: KLineChartProps) {
       downColor: "#ea3941",
       borderDownColor: "#ea3941",
       borderUpColor: "#00c176",
-      wickDownColor: "#ea394180",
-      wickUpColor: "#00c17680",
+      wickDownColor: "#ea394150",
+      wickUpColor: "#00c17650",
     });
 
     const volumeSeries = chart.addHistogramSeries({
@@ -123,10 +144,16 @@ export default function KLineChart({ market }: KLineChartProps) {
     let cancelled = false;
     const abortController = new AbortController();
 
+    allCandlesRef.current = [];
+    allVolumesRef.current = [];
+    isFetchingRef.current = false;
+    hasMoreRef.current = true;
+    oldestTimeRef.current = 0;
+
     const fetchKlines = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/klines?symbol=${market}&interval=${interval}&limit=500`,
+          `${API_URL}/klines?symbol=${market}&interval=${interval}&limit=500`,
           { signal: abortController.signal },
         );
         const data = await res.json();
@@ -146,38 +173,136 @@ export default function KLineChart({ market }: KLineChartProps) {
           close: c.close,
         }));
 
-        const volumes = data.candles.map((c: any) => ({
+        const volumes: VolumeData[] = data.candles.map((c: any) => ({
           time: Math.floor(c.timestamp / 1000) as Time,
           value: c.volume,
-          color:
-            c.close >= c.open
-              ? "rgba(0, 193, 118, 0.08)"
-              : "rgba(234, 57, 65, 0.08)",
+          color: volumeColor(c.open, c.close),
         }));
 
         if (candles.length > 0) {
+          allCandlesRef.current = candles;
+          allVolumesRef.current = volumes;
+          oldestTimeRef.current = candles[0]!.time as number;
+          const lastCandle = candles[candles.length - 1]!;
+          lastCandleTimeRef.current = lastCandle.time as number;
+
           candleSeriesRef.current.setData(candles);
           volumeSeriesRef.current.setData(volumes);
-          const lastCandle = candles[candles.length - 1];
-          if (lastCandle) lastCandleTimeRef.current = lastCandle.time as number;
 
           const ts = chart.timeScale();
           if (candles.length < 10) {
             ts.fitContent();
           } else {
-            const barsToShow = Math.min(candles.length, 250);
+            const barsToShow = Math.min(candles.length, 80);
             ts.setVisibleLogicalRange({
               from: candles.length - barsToShow,
-              to: candles.length + 10,
+              to: candles.length + 8,
             });
           }
         }
       } catch (err) {
-        console.error("Failed to fetch klines:", err);
+        if (!cancelled) console.error("Failed to fetch klines:", err);
+      }
+    };
+
+    const fetchOlderCandles = async () => {
+      if (
+        isFetchingRef.current ||
+        !hasMoreRef.current ||
+        !oldestTimeRef.current ||
+        cancelled
+      )
+        return;
+      isFetchingRef.current = true;
+
+      try {
+        const endTimeMs = oldestTimeRef.current * 1000;
+        const res = await fetch(
+          `${API_URL}/klines?symbol=${market}&interval=${interval}&limit=${HISTORY_FETCH_LIMIT}&endTime=${endTimeMs}`,
+          { signal: abortController.signal },
+        );
+        const data = await res.json();
+        if (
+          cancelled ||
+          !data.candles ||
+          !candleSeriesRef.current ||
+          !volumeSeriesRef.current
+        )
+          return;
+
+        if (data.candles.length === 0) {
+          hasMoreRef.current = false;
+          return;
+        }
+
+        const olderCandles: CandlestickData<Time>[] = data.candles.map(
+          (c: any) => ({
+            time: Math.floor(c.timestamp / 1000) as Time,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+          }),
+        );
+
+        const olderVolumes: VolumeData[] = data.candles.map((c: any) => ({
+          time: Math.floor(c.timestamp / 1000) as Time,
+          value: c.volume,
+          color: volumeColor(c.open, c.close),
+        }));
+
+        const existingTimes = new Set(
+          allCandlesRef.current.map((c) => c.time as number),
+        );
+        const newCandles = olderCandles.filter(
+          (c) => !existingTimes.has(c.time as number),
+        );
+        const newVolumes = olderVolumes.filter(
+          (v) => !existingTimes.has(v.time as number),
+        );
+
+        if (newCandles.length === 0) {
+          hasMoreRef.current = false;
+          return;
+        }
+
+        const visibleRange = chart.timeScale().getVisibleLogicalRange();
+        const prependCount = newCandles.length;
+
+        allCandlesRef.current = [...newCandles, ...allCandlesRef.current];
+        allVolumesRef.current = [...newVolumes, ...allVolumesRef.current];
+        oldestTimeRef.current = allCandlesRef.current[0]!.time as number;
+
+        candleSeriesRef.current.setData(allCandlesRef.current);
+        volumeSeriesRef.current.setData(allVolumesRef.current);
+
+        if (visibleRange) {
+          chart.timeScale().setVisibleLogicalRange({
+            from: visibleRange.from + prependCount,
+            to: visibleRange.to + prependCount,
+          });
+        }
+
+        if (data.candles.length < HISTORY_FETCH_LIMIT) {
+          hasMoreRef.current = false;
+        }
+      } catch (err) {
+        if (!cancelled) console.error("Failed to fetch older klines:", err);
+      } finally {
+        isFetchingRef.current = false;
       }
     };
 
     fetchKlines();
+
+    const onVisibleRangeChange = (range: LogicalRange | null) => {
+      if (!range || cancelled) return;
+      if (range.from <= SCROLL_THRESHOLD && hasMoreRef.current) {
+        fetchOlderCandles();
+      }
+    };
+
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange);
 
     const manager = SignalingManager.getInstance();
     const callbackId = `kline-chart-${market}-${interval}`;
@@ -205,21 +330,34 @@ export default function KLineChart({ market }: KLineChartProps) {
         const isNewCandle = timeNum !== lastCandleTimeRef.current;
         lastCandleTimeRef.current = timeNum;
 
-        candleSeriesRef.current.update({
+        const candleUpdate: CandlestickData<Time> = {
           time,
           open: k.open,
           high: k.high,
           low: k.low,
           close: k.close,
-        });
-        volumeSeriesRef.current.update({
+        };
+        const volumeUpdate: VolumeData = {
           time,
           value: k.volume,
-          color:
-            k.close >= k.open
-              ? "rgba(0, 193, 118, 0.08)"
-              : "rgba(234, 57, 65, 0.08)",
-        });
+          color: volumeColor(k.open, k.close),
+        };
+
+        if (isNewCandle) {
+          allCandlesRef.current.push(candleUpdate);
+          allVolumesRef.current.push(volumeUpdate);
+        } else {
+          const last = allCandlesRef.current[allCandlesRef.current.length - 1];
+          if (last && (last.time as number) === timeNum) {
+            allCandlesRef.current[allCandlesRef.current.length - 1] =
+              candleUpdate;
+            allVolumesRef.current[allVolumesRef.current.length - 1] =
+              volumeUpdate;
+          }
+        }
+
+        candleSeriesRef.current.update(candleUpdate);
+        volumeSeriesRef.current.update(volumeUpdate);
 
         if (isNewCandle && chartRef.current) {
           chartRef.current.timeScale().scrollToRealTime();
@@ -240,6 +378,9 @@ export default function KLineChart({ market }: KLineChartProps) {
       cancelled = true;
       abortController.abort();
       ro.disconnect();
+      chart
+        .timeScale()
+        .unsubscribeVisibleLogicalRangeChange(onVisibleRangeChange);
       manager.deRegisterCallback("kline" as any, callbackId);
       manager.sendRaw({
         method: "UNSUBSCRIBE",

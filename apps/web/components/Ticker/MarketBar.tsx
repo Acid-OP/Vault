@@ -4,6 +4,20 @@ import React, { useEffect, useState } from "react";
 import { SignalingManager, Ticker } from "../../utils/Manager";
 import { getTicker } from "../../utils/httpClient";
 
+function fmt(value: string | number, decimals = 2): string {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(n)) return "0.00";
+  return n.toFixed(decimals);
+}
+
+function fmtVol(value: string | number): string {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(n)) return "0";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
+  return n.toFixed(0);
+}
+
 export function MarketBar({ market }: { market: string }) {
   const [base, quote] = market.split("_");
   const [marketData, setMarketData] = useState<Ticker | null>(null);
@@ -90,10 +104,10 @@ export function MarketBar({ market }: { market: string }) {
         <span
           className={`text-[14px] font-semibold font-mono tabular-nums leading-tight ${changeColor}`}
         >
-          {marketData.lastPrice}
+          {fmt(marketData.lastPrice)}
         </span>
         <span className="text-[8px] text-[#3d4354] font-mono leading-tight">
-          ${marketData.lastPrice}
+          ${fmt(marketData.lastPrice)}
         </span>
       </div>
 
@@ -106,7 +120,8 @@ export function MarketBar({ market }: { market: string }) {
             className={`text-[10px] font-medium font-mono tabular-nums leading-tight ${changeColor}`}
           >
             {isNegative ? "" : "+"}
-            {marketData.priceChange} ({marketData.priceChangePercent}%)
+            {fmt(marketData.priceChange)} ({fmt(marketData.priceChangePercent)}
+            %)
           </span>
         </div>
 
@@ -115,7 +130,7 @@ export function MarketBar({ market }: { market: string }) {
             High
           </span>
           <span className="text-[10px] text-[#848e9c] font-mono tabular-nums leading-tight">
-            {marketData.high24h}
+            {fmt(marketData.high24h)}
           </span>
         </div>
 
@@ -124,7 +139,7 @@ export function MarketBar({ market }: { market: string }) {
             Low
           </span>
           <span className="text-[10px] text-[#848e9c] font-mono tabular-nums leading-tight">
-            {marketData.low24h}
+            {fmt(marketData.low24h)}
           </span>
         </div>
 
@@ -133,7 +148,7 @@ export function MarketBar({ market }: { market: string }) {
             Vol({quote})
           </span>
           <span className="text-[10px] text-[#848e9c] font-mono tabular-nums leading-tight">
-            {marketData.volume24h}
+            {fmtVol(marketData.volume24h)}
           </span>
         </div>
       </div>

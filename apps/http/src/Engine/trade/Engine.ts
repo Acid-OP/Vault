@@ -864,7 +864,6 @@ export class Engine {
   }
 
   private UpdatedDepth(price: string, market: string) {
-    logger.info("engine.updating_depth", { market, price });
     const orderbook = this.orderBooks.find((x) => x.getMarketPair() === market);
     if (!orderbook) {
       logger.error("engine.orderbook_not_found", { market });
@@ -888,12 +887,6 @@ export class Engine {
     RedisManager.getInstance().Publish(`depth@${market}`, {
       stream: `depth@${market}`,
       data: depthData,
-    });
-
-    logger.info("engine.depth_published", {
-      market,
-      bidLevels: depth.aggregatedBids.length,
-      askLevels: depth.aggregatedAsks.length,
     });
   }
 

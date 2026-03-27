@@ -93,11 +93,6 @@ export class Subscription {
         return;
       }
 
-      logger.info("subscription.broadcast", {
-        channel,
-        subscriberCount: subscribers.length,
-      });
-
       subscribers.forEach((userId) => {
         const user = UserManager.getInstance().getUser(userId);
         if (user) {
@@ -106,9 +101,6 @@ export class Subscription {
             channel,
           );
           user.emit(transformedMessage);
-          logger.info("subscription.message.sent", { userId, channel });
-        } else {
-          logger.warn("subscription.user.not_found", { userId });
         }
       });
     } catch (error) {

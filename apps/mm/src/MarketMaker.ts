@@ -242,22 +242,19 @@ export class MarketMaker {
     this.tickCount++;
     this.updateFairPrice();
 
-    // Requote every 3 ticks
-    if (this.tickCount % 3 === 0) {
+    if (this.tickCount % 2 === 0) {
       await this.cancelAllOrders();
       await this.placeQuotes();
     }
 
-    // Generate 1-2 trades per tick
-    if (Math.random() < 0.75) {
+    if (Math.random() < 0.9) {
       await this.generateTrade();
     }
-    // Sometimes a second trade in the same tick for volume
-    if (Math.random() < 0.2) {
+    if (Math.random() < 0.4) {
       await this.generateTrade();
     }
 
-    if (this.tickCount % 15 === 0) {
+    if (this.tickCount % 20 === 0) {
       logger.info("mm.tick", {
         symbol: this.config.symbol,
         tick: this.tickCount,

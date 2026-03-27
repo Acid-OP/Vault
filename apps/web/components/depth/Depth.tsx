@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Tabs } from "./Tabs";
 import { ViewToggle } from "./ViewToggle";
 import { OrderbookHeader } from "./OrderbookHeader";
@@ -33,48 +33,11 @@ const Orderbook: React.FC<OrderbookProps> = ({
   const [buyPercentage, setBuyPercentage] = useState(50);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState(0);
-  const [flashBids, setFlashBids] = useState<Set<string>>(new Set());
-  const [flashAsks, setFlashAsks] = useState<Set<string>>(new Set());
-  const prevBidsRef = useRef<Map<string, string>>(new Map());
-  const prevAsksRef = useRef<Map<string, string>>(new Map());
-  const flashTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const detectChanges = useCallback(
-    (newOrders: Order[], prevMap: Map<string, string>): Set<string> => {
-      const changed = new Set<string>();
-      newOrders.forEach((order) => {
-        const prev = prevMap.get(order.price);
-        if (prev === undefined || prev !== order.size) {
-          changed.add(order.price);
-        }
-      });
-      return changed;
-    },
-    [],
-  );
-
-  const updateOrders = useCallback(
-    (newBids: Order[], newAsks: Order[]) => {
-      const bidChanges = detectChanges(newBids, prevBidsRef.current);
-      const askChanges = detectChanges(newAsks, prevAsksRef.current);
-
-      if (bidChanges.size > 0) setFlashBids(bidChanges);
-      if (askChanges.size > 0) setFlashAsks(askChanges);
-
-      prevBidsRef.current = new Map(newBids.map((b) => [b.price, b.size]));
-      prevAsksRef.current = new Map(newAsks.map((a) => [a.price, a.size]));
-
-      setBids(newBids);
-      setAsks(newAsks);
-
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      flashTimerRef.current = setTimeout(() => {
-        setFlashBids(new Set());
-        setFlashAsks(new Set());
-      }, 400);
-    },
-    [detectChanges],
-  );
+  const updateOrders = useCallback((newBids: Order[], newAsks: Order[]) => {
+    setBids(newBids);
+    setAsks(newAsks);
+  }, []);
 
   useEffect(() => {
     const manager = SignalingManager.getInstance();
@@ -166,7 +129,6 @@ const Orderbook: React.FC<OrderbookProps> = ({
     );
 
     return () => {
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       manager.deRegisterCallback("depth", depthCallbackId);
       manager.deRegisterCallback("ticker", tickerCallbackId);
       manager.unsubscribe(market);
@@ -207,7 +169,6 @@ const Orderbook: React.FC<OrderbookProps> = ({
               maxTotal={maxTotal}
               calculateBarWidth={calculateBarWidth}
               calculateSizeBarWidth={calculateSizeBarWidth}
-              flashPrices={flashAsks}
             />
           </div>
         </div>
@@ -223,7 +184,6 @@ const Orderbook: React.FC<OrderbookProps> = ({
               maxTotal={maxTotal}
               calculateBarWidth={calculateBarWidth}
               calculateSizeBarWidth={calculateSizeBarWidth}
-              flashPrices={flashBids}
             />
           </div>
         </div>
