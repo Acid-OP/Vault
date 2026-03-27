@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useMemo } from "react";
 import Navbar from "../../components/Navbar/Navbar";
+import { getAvatarUrl } from "../../utils/avatars";
 
 /* ── Data ─────────────────────────────────────────── */
 
@@ -674,12 +675,12 @@ export default function MarketsPage() {
               >
                 {/* Header row */}
                 <div className="flex items-center gap-3 mb-4">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center text-[20px]"
-                    style={{ backgroundColor: `${m.color}12` }}
-                  >
-                    {m.emoji}
-                  </div>
+                  <img
+                    src={getAvatarUrl(m.symbol)}
+                    alt={m.name}
+                    className="w-11 h-11 rounded-xl object-cover"
+                    loading="lazy"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-[#eaecef] text-[14px] font-semibold group-hover:text-white transition-colors">
@@ -786,12 +787,12 @@ export default function MarketsPage() {
                   className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_120px] gap-4 px-5 py-4 items-center hover:bg-[#13141c]/60 transition-all duration-300 rounded-xl cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center text-[16px] shrink-0 group-hover:scale-110 transition-transform duration-200"
-                      style={{ backgroundColor: `${m.color}12` }}
-                    >
-                      {m.emoji}
-                    </div>
+                    <img
+                      src={getAvatarUrl(m.symbol)}
+                      alt={m.name}
+                      className="w-9 h-9 rounded-lg object-cover shrink-0 group-hover:scale-110 transition-transform duration-200"
+                      loading="lazy"
+                    />
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-[#eaecef] text-[13px] font-semibold">

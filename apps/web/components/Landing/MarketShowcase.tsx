@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useEffect } from "react";
+import { getAvatarUrl } from "../../utils/avatars";
 
 const row1 = [
   {
@@ -198,7 +199,12 @@ function MarketPill({
       href={`/trade/${symbol}_USD`}
       className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-[#13141c] border border-[rgba(42,46,57,0.15)] hover:border-[rgba(42,46,57,0.4)] transition-all duration-200 shrink-0 group cursor-pointer"
     >
-      <span className="text-[16px]">{emoji}</span>
+      <img
+        src={getAvatarUrl(symbol)}
+        alt={name}
+        className="w-7 h-7 rounded-full object-cover"
+        loading="lazy"
+      />
       <div className="flex flex-col">
         <span className="text-[#eaecef] text-[12px] font-medium group-hover:text-white transition-colors">
           {symbol}/USD

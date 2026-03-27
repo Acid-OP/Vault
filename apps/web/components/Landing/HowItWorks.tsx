@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { getAvatarUrl } from "../../utils/avatars";
 
 interface PersonalityCard {
   emoji: string;
@@ -139,12 +140,12 @@ export default function HowItWorks() {
             >
               {/* Header */}
               <div className="flex items-center gap-3 mb-4">
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center text-[20px]"
-                  style={{ backgroundColor: `${p.color}15` }}
-                >
-                  {p.emoji}
-                </div>
+                <img
+                  src={getAvatarUrl(p.symbol)}
+                  alt={p.name}
+                  className="w-11 h-11 rounded-xl object-cover"
+                  loading="lazy"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-[#eaecef] text-[14px] font-semibold">

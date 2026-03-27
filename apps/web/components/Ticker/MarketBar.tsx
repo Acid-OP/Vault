@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { SignalingManager, Ticker } from "../../utils/Manager";
 import { getTicker } from "../../utils/httpClient";
+import { getAvatarUrl } from "../../utils/avatars";
 
 function fmt(value: string | number, decimals = 2): string {
   const n = typeof value === "string" ? parseFloat(value) : value;
@@ -88,9 +89,11 @@ export function MarketBar({ market }: { market: string }) {
   return (
     <div className="flex items-center gap-4 px-3 py-1 bg-[#0e0f14] rounded-lg border border-[rgba(42,46,57,0.2)]">
       <div className="flex items-center gap-2 pr-4 border-r border-[rgba(42,46,57,0.25)]">
-        <div className="w-5 h-5 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0">
-          {base?.charAt(0)}
-        </div>
+        <img
+          src={getAvatarUrl(base || "")}
+          alt={base || ""}
+          className="w-5 h-5 rounded-full object-cover shrink-0"
+        />
         <div className="flex items-baseline gap-0.5">
           <span className="text-[#eaecef] font-semibold text-[12px]">
             {base}
